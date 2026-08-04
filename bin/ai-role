@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+#
+# ai-role
+#
+# Loads:
+#   1. Shared role lifecycle instructions
+#   2. Selected role-specific instructions
+#
+# Then launches either Claude Code or OpenCode.
+#
+# Usage:
+#
+#   ai-role claude architect
+#
+#   ai-role opencode implementer \
+#       -m openrouter/deepseek/deepseek-v3.2
+#
+# Debug usage:
+#
+#   AI_ROLE_DEBUG=1 ai-role claude architect
+#
+
+set -euo pipefail
+
+###############################################################################
+# Configuration
+###############################################################################
+
+AI_PLATFORM="${AI_PLATFORM:?AI_PLATFORM environment variable is not set}"
+
+PROMPTS_DIR="$AI_PLATFORM/prompts"
+
+# Shared lifecycle file lives at the top level of AI_PLATFORM.
+LIFECYCLE_FILE="$AI_PLATFORM/role-lifecycle.md"
+
+###############################################################################
+# Usage
+###############################################################################
+
+show_usage() {
+    cat <<'EOF'
+Usage:
+
+  ai-role <runtime> <role> [runtime arguments...]
+
+Supported runtimes:
+
+  claude
+  opencode
+
+Examples:
+
+  ai-role claude architect
+
+  ai-role claude reviewer
+
+  ai-role opencode implementer \
+      -m openrouter/deepseek/deepseek-v3.2
+
+  ai-role opencode reviewer \
+      -m openrouter/deepseek/deepseek-v4-pro
+
+Debug:
+
+  AI_ROLE_DEBUG=1 ai-role claude architect
+EOF
+}
+
+###############################################################################
+# Validate arguments
+###############################################################################
+
+if [[ $# -lt 2 ]]; then
+    show_usage
+    exit 1
+fi
+
+RUNTIME="$1"
+ROLE="$2"
+
+shift 2
+
+ROLE_FILE="$PROMPTS_DIR/role-${ROLE}.md"
+
+###############################################################################
+# Validate runtime
+###############################################################################
+
+case "$RUNTIME" in
+    claude|opencode)
+        ;;
+    *)
+        echo "Error: unsupported runtime: $RUNTIME"
+        echo
+        show_usage
+        exit 1
+        ;;
+esac
+
+###############################################################################
+# Validate required commands
+###############################################################################
+
+if ! command -v "$RUNTIME" >/dev/null 2>&1; then
+    echo "Error: command not found: $RUNTIME"
+    exit 1
+fi
+
+###############################################################################
+# Validate prompt files
+###############################################################################
+
+if [[ ! -f "$LIFECYCLE_FILE" ]]; then
+    echo "Missing lifecycle prompt:"
+    echo "  $LIFECYCLE_FILE"
+    exit 1
+fi
+
+if [[ ! -r "$LIFECYCLE_FILE" ]]; then
+    echo "Lifecycle prompt is not readable:"
+    echo "  $LIFECYCLE_FILE"
+    exit 1
+fi
+
+if [[ ! -f "$ROLE_FILE" ]]; then
+    echo "Missing role prompt:"
+    echo "  $ROLE_FILE"
+    echo
+    echo "Available roles:"
+
+    find "$PROMPTS_DIR" \
+        -maxdepth 1 \
+        -type f \
+        -name 'role-*.md' \
+        ! -name 'role-lifecycle.md' \
+        -exec basename {} \; 2>/dev/null \
+        | sed -E 's/^role-(.*)\.md$/  \1/' \
+        | sort
+
+    exit 1
+fi
+
+if [[ ! -r "$ROLE_FILE" ]]; then
+    echo "Role prompt is not readable:"
+    echo "  $ROLE_FILE"
+    exit 1
+fi
+
+###############################################################################
+# Build the combined prompt
+###############################################################################
+
+COMBINED_PROMPT="$(
+    printf '%s\n\n%s\n' \
+        "$(cat "$LIFECYCLE_FILE")" \
+        "$(cat "$ROLE_FILE")"
+)"
+
+###############################################################################
+# Optional diagnostics
+###############################################################################
+
+if [[ "${AI_ROLE_DEBUG:-0}" == "1" ]]; then
+    echo "AI role launcher diagnostics"
+    echo "----------------------------"
+    echo "Runtime:          $RUNTIME"
+    echo "Role:             $ROLE"
+    echo "AI platform:      $AI_PLATFORM"
+    echo "Lifecycle file:   $LIFECYCLE_FILE"
+    echo "Role file:        $ROLE_FILE"
+    echo "Lifecycle bytes:  $(wc -c < "$LIFECYCLE_FILE" | tr -d ' ')"
+    echo "Role bytes:       $(wc -c < "$ROLE_FILE" | tr -d ' ')"
+    echo "Combined bytes:   $(printf '%s' "$COMBINED_PROMPT" | wc -c | tr -d ' ')"
+    echo
+
+    echo "Debug markers found:"
+    MARKERS="$(
+        printf '%s\n' "$COMBINED_PROMPT" \
+            | grep -oE 'DEBUG_MARKER_[A-Za-z0-9_]+' \
+            | sort -u \
+            || true
+    )"
+
+    if [[ -n "$MARKERS" ]]; then
+        printf '%s\n' "$MARKERS"
+    else
+        echo "None"
+    fi
+
+    echo
+fi
+
+###############################################################################
+# Launch selected runtime
+###############################################################################
+
+case "$RUNTIME" in
+    claude)
+        exec claude \
+            --append-system-prompt "$COMBINED_PROMPT" \
+            "$@"
+        ;;
+
+    opencode)
+        exec opencode \
+            --prompt "$COMBINED_PROMPT" \
+            "$@"
+        ;;
+esac
