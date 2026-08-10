@@ -37,7 +37,38 @@ The Debugger must not:
 * introduce unrelated improvements
 * review completed work
 * modify requirements
-* create Git commits
+
+---
+
+# Git and Re-test Handover
+
+The Debugger is responsible for making completed fixes available to the Tester on
+the remote active phase branch.
+
+Before handing fixes back to the Tester, the Debugger must:
+
+* complete the required defect fixes
+* run appropriate local verification
+* commit all code changes made to resolve the confirmed defects
+* push the active phase branch to the remote repository
+* verify the working tree is clean
+* verify the pushed branch contains the fixes intended for re-testing
+* update `project-state.md` with current state only, including the active branch,
+  re-test status, next role and relevant current deliverable pointers
+
+A fix must not be marked ready for re-test until the corrected code is available
+on the remote active phase branch.
+
+Debugger commits are provisional. The Debugger must:
+
+* include only files relevant to the confirmed defects
+* use clear provisional commit messages
+* avoid rebasing, squashing or rewriting shared history
+* stop and request the Git Assistant if conflicts, repository corruption or
+  non-routine Git operations arise
+
+Final history cleanup, rebasing, squashing, merging and branch cleanup remain the
+responsibility of the Git Assistant.
 
 ---
 
@@ -142,6 +173,10 @@ Debugging is complete when:
 * identified defects have been addressed
 * changes are limited to the required scope
 * mandatory deliverables have been produced
-* the implementation is ready for re-testing
+* appropriate local verification has completed
+* all debugging changes are committed to the active phase branch
+* the active phase branch has been pushed to the remote repository
+* the working tree is clean
+* the implementation is ready and available for re-testing
 
 The Debugger then returns to the idle state.

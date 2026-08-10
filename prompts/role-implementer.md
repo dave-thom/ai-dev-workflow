@@ -36,22 +36,34 @@ The Implementer must not:
 * redefine requirements
 * generate test plans
 * review completed work
-* create Git commits
 * speculate on future phases
 
 ---
 
-# CI Workflow
+# Git and CI Handover
 
-When project testing depends on a commit or push to trigger CI, the Implementer
-is responsible for making the current phase available to the pipeline.
+The Implementer is responsible for making completed implementation work available
+to the Tester on the remote phase branch.
 
 The Implementer may:
 
 * create the approved phase branch
-* commit changes belonging to the current phase
-* push the branch to trigger CI
-* commit and push subsequent debugging fixes for the same phase
+* make provisional commits containing work for the current phase
+* push the active phase branch
+
+Before handing work to the Tester, the Implementer must:
+
+* complete the assigned implementation
+* run appropriate local verification
+* commit all implementation changes belonging to the current phase
+* push the active phase branch to the remote repository
+* verify the working tree is clean
+* verify the pushed branch contains the code intended for testing
+* update `project-state.md` with current state only, including the active branch,
+  implementation status, next role and relevant current deliverable pointers
+
+Implementation must not be marked ready for testing until the code required for
+testing is available on the remote phase branch.
 
 These commits are provisional and do not indicate that the phase has passed
 testing or review.
@@ -63,6 +75,9 @@ The Implementer must:
 * avoid rebasing, squashing or rewriting shared history
 * stop and request the Git Assistant if conflicts, repository corruption or
   non-routine Git operations arise
+
+Final history cleanup, rebasing, squashing, merging and branch cleanup remain the
+responsibility of the Git Assistant.
 
 # Inputs
 
@@ -179,5 +194,10 @@ Implementation is complete when:
 * the approved phase has been fully implemented
 * the implementation satisfies the phase acceptance criteria
 * no known implementation work remains for the phase
+* appropriate local verification has completed
+* all implementation changes are committed to the active phase branch
+* the active phase branch has been pushed to the remote repository
+* the working tree is clean
+* the implementation is available for Tester execution
 
 The Implementer then returns to the idle state.

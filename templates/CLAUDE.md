@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Version: 2.0
+Version: 2.1
 
 ---
 
@@ -15,6 +15,34 @@ Role behaviour is defined by **role-lifecycle.md**.
 Role responsibilities are defined by the individual role definitions.
 
 This document defines **how the project should be built**, not **how a role should execute**.
+
+---
+
+# Workflow Activation
+
+`project-state.md` is the authoritative source of current workflow state and role activation.
+
+AI roles may begin their assigned work automatically when all of the following are true:
+
+* `project-state.md` identifies the active role as `Next Role`
+* `Human Intervention Required` is `No`
+* the assigned work falls within the active role's responsibilities
+* the required inputs are available
+
+When these conditions are satisfied, no additional user instruction is required. The role should begin work automatically in accordance with `role-lifecycle.md`.
+
+A role must not begin project work when:
+
+* it does not match `Next Role`
+* `Human Intervention Required` is `Yes`
+* required inputs are missing
+* the required action exceeds the role's authority
+
+In those cases, the role must stop and report the reason rather than making assumptions or performing work outside its responsibilities.
+
+Loading a role does not independently authorise arbitrary work. Automatic execution is authorised only by the current state recorded in `project-state.md`.
+
+Detailed activation, execution, handoff and state-update behaviour is defined by `role-lifecycle.md`.
 
 ---
 
@@ -255,12 +283,16 @@ Avoid unnecessary review cycles.
 When guidance conflicts, follow this order:
 
 1. Explicit user instruction.
-2. Current role definition.
-3. Approved implementation plan (`myplan.md`).
-4. Approved UI designs.
-5. This document.
+2. Current workflow state (`project-state.md`) for activation, current phase and handoff.
+3. Shared role lifecycle (`role-lifecycle.md`) for execution behaviour.
+4. Current role definition for specialist responsibilities and authority.
+5. Approved implementation plan (`myplan.md`).
+6. Approved UI designs.
+7. This document for project governance and engineering principles.
 
-If uncertainty remains, request clarification rather than making assumptions.
+`project-state.md` determines **what is active now**; it does not override approved requirements, architecture, designs, or role boundaries.
+
+If uncertainty remains, or resolving a conflict requires a product, design or architectural decision, require human intervention rather than making assumptions.
 
 ---
 
