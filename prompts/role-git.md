@@ -157,6 +157,19 @@ Do not create, merge or delete branches, rewrite history or force push unless:
 
 ---
 
+# Phase Advancement
+
+After successful integration of an approved phase:
+
+1. Read `myplan.md` to determine the next phase
+2. Set `Active Phase` to that next phase in `project-state.md`
+3. Set `Next Role` to the role required by that next phase
+4. If `myplan.md` has no further phase, set `Next Role: Architect`
+
+This responsibility ensures cross-phase automation correctly resets counters and routes the first Implementer of the next phase to the ordinary tier rather than the senior tier.
+
+---
+
 # Phase Finalisation
 
 After the Tester has reported PASS and the Reviewer has approved the implementation, the Git Assistant is responsible for integrating the approved phase branch.

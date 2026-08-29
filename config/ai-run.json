@@ -1,0 +1,18 @@
+{
+  "kickoff_prompt": "Begin the workflow defined by project-state.md.",
+  "roles": {
+    "implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v3.2"] },
+    "senior_implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
+    "debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v3.2"] },
+    "senior_debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
+    "git": { "command": ["ai-role", "opencode", "git", "-m", "openrouter/deepseek/deepseek-v4-flash"] },
+    "tester": { "command": ["ai-role", "claude", "tester", "--model", "sonnet", "--permission-mode", "auto"] },
+    "reviewer": { "command": ["ai-role", "claude", "reviewer", "--model", "sonnet", "--permission-mode", "auto"] },
+    "designer": { "command": ["ai-role", "claude", "designer", "--model", "sonnet", "--permission-mode", "auto"] }
+  },
+  "limits": {
+    "senior_debugger_max": 3,
+    "designer_max": 2,
+    "phase_max_executions": 15
+  }
+}

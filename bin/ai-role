@@ -156,7 +156,6 @@ COMBINED_PROMPT="$(
         "$(cat "$ROLE_FILE")"
 )"
 
-###############################################################################
 # Optional diagnostics
 ###############################################################################
 
@@ -191,19 +190,77 @@ if [[ "${AI_ROLE_DEBUG:-0}" == "1" ]]; then
 fi
 
 ###############################################################################
+# Dry-run mode
+###############################################################################
+
+if [[ "${AI_ROLE_DRYRUN:-0}" == "1" ]]; then
+    case "$RUNTIME" in
+        claude)
+            if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+                printf '%s\n' claude -p --append-system-prompt "$COMBINED_PROMPT" "$@"
+            else
+                printf '%s\n' claude --append-system-prompt "$COMBINED_PROMPT" "$@"
+            fi
+            ;;
+        opencode)
+            if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+                # For opencode batch mode, the final argument is the message
+                # All preceding arguments are runtime args
+                if [[ $# -gt 0 ]]; then
+                    LAST_ARG="${@: -1}"
+                    RUNTIME_ARGS=("${@:1:$#-1}")
+                    printf '%s\n' opencode run --auto "${RUNTIME_ARGS[@]}" "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
+                else
+                    printf '%s\n' opencode run --auto "$COMBINED_PROMPT"
+                fi
+            else
+                printf '%s\n' opencode --prompt "$COMBINED_PROMPT" "$@"
+            fi
+            ;;
+    esac
+    exit 0
+fi
+
+###############################################################################
 # Launch selected runtime
 ###############################################################################
 
 case "$RUNTIME" in
     claude)
-        exec claude \
-            --append-system-prompt "$COMBINED_PROMPT" \
-            "$@"
+        if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+            exec claude \
+                -p \
+                --append-system-prompt "$COMBINED_PROMPT" \
+                "$@"
+        else
+            exec claude \
+                --append-system-prompt "$COMBINED_PROMPT" \
+                "$@"
+        fi
         ;;
 
     opencode)
-        exec opencode \
-            --prompt "$COMBINED_PROMPT" \
-            "$@"
+        if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+            # For opencode batch mode, the final argument is the message
+            # All preceding arguments are runtime args
+            if [[ $# -gt 0 ]]; then
+                LAST_ARG="${@: -1}"
+                RUNTIME_ARGS=("${@:1:$#-1}")
+                exec opencode \
+                    run \
+                    --auto \
+                    "${RUNTIME_ARGS[@]}" \
+                    "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
+            else
+                exec opencode \
+                    run \
+                    --auto \
+                    "$COMBINED_PROMPT"
+            fi
+        else
+            exec opencode \
+                --prompt "$COMBINED_PROMPT" \
+                "$@"
+        fi
         ;;
 esac
