@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# ai-next - wrapper for the orchestrator's next command
+# Sets PYTHONPATH to include the ai-run package
+
+set -e
+
+# Get the directory where this script lives
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AI_PLATFORM="$(dirname "$SCRIPT_DIR")"
+
+# Add the AI platform to PYTHONPATH so python can find the airun module
+export PYTHONPATH="$AI_PLATFORM:$PYTHONPATH"
+
+# Execute the orchestrator's next command
+exec python3 -m airun next "$@"
