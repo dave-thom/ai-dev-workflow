@@ -135,7 +135,7 @@ class TestProjectStateParser(unittest.TestCase):
     def test_parses_current_project_state(self):
         """Test parsing the actual project-state.md from the project root."""
         # This is an integration test to ensure the parser works with real data
-        project_root = Path(__file__).parent.parent.parent
+        project_root = Path(__file__).parent.parent
         state_path = project_root / "project-state.md"
         
         if state_path.exists():
