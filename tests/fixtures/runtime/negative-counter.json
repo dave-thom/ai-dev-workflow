@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "phase": "Phase 1",
+  "counters": {
+    "implementer": -1,
+    "senior_implementer": 0,
+    "designer": 0,
+    "tester": 0,
+    "debugger": 0,
+    "senior_debugger": 0,
+    "reviewer": 0,
+    "git": 0
+  },
+  "total_runs": 5
+}
