@@ -1,0 +1,564 @@
+# Implementation Plan — `ai-run` Workflow Orchestrator
+
+Version: 1.1
+
+Source specification: `specification/auto-run requirements.md`
+
+---
+
+# 1. Specification Validation Outcome
+
+The specification was validated against the actual repository, role contracts, shell
+configuration and installed runtimes before planning. Findings and their resolutions:
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| 1 | §26 states OpenCode already has non-interactive behaviour. It does not. `bin/ai-role` runs `opencode --prompt` (TUI) and `claude` without `-p`. Both are interactive. | `ai-role` gains a batch mode (Phase 1). |
+| 2 | `c-review` referenced in §6/§10/§30 does not exist. The alias is `c-rev`. | Aliases are not used by automation (§24). Runner commands are defined explicitly in config. |
+| 3 | §5 omits UI Designer, yet `prompts/role-designer.md`, the `c-design` alias and the `UI Specification` state field exist. | **User decision:** `UI Designer` is a supported logical role resolving to the Claude designer runner. |
+| 4 | §20's limit of 12 exactly equals the maximum debug path, making the §10 Reviewer-rework path unreachable in any phase that debugged. | **User decision:** default raised to 15, configurable. |
+| 5 | No role owns advancing `Active Phase`; §17 and acceptance criteria 13–14 depend on it. | **User decision:** `prompts/role-git.md` gains an explicit phase-advance responsibility, plus an orchestrator guardrail. |
+| 6 | §13's non-`project-state` triggers ("role reports architecture must change") require reading agent output, which is inference and forbidden by §2. | Detection is via `Human Intervention Required: Yes` only. Agent output is never parsed. |
+| 7 | `.ai-run-state.json` and `.ai-run.log` live in the project directory and would dirty the working tree, failing the orchestrator's own §27 clean-tree check. | Startup guard requires both paths to be git-ignored. |
+| 8 | `Status` has no defined vocabulary, so §17's "plan complete / idle" stop condition is not deterministic. | Completion and idle are detected from `Next Role` (`Architect`, `None`, unknown) and `Human Intervention Required`, never from `Status` text. |
+| 9 | Acceptance criteria 12–13 cannot be tested without live paid model runs. | Runner commands are configurable, so a stub-runner fixture exercises both offline (Phase 8). |
+
+---
+
+# 2. Architecture Overview
+
+`ai-run` is a single Python package invoked through three thin executables on `PATH`.
+
+```text
+$AI_PLATFORM/
+    airun/                  orchestrator package (stdlib only)
+        __init__.py
+        __main__.py         argparse entry point
+        state.py            project-state.md parsing
+        config.py           runner and limit configuration
+        runtime.py          .ai-run-state.json counters
+        routing.py          logical role -> concrete runner
+        guards.py           git handoff and ignore-file validation
+        launcher.py         subprocess execution
+        logbook.py          .ai-run.log
+        errors.py           Stop / exit-code taxonomy
+    bin/
+        ai-role             existing launcher (gains batch mode)
+        ai-next             exec python3 -m airun next "$@"
+        ai-run-phase        exec python3 -m airun run-phase "$@"
+        ai-run              exec python3 -m airun run "$@"
+    config/
+        ai-run.json         default runner and limit configuration
+```
+
+Data flow for one transition:
+
+```text
+project-state.md ──> state.py ──┐
+.ai-run-state.json ──> runtime.py ──┤
+config/ai-run.json ──> config.py ──┴──> routing.py ──> guards.py ──> launcher.py
+                                                                          │
+                                                     re-read project-state.md
+                                                                          │
+                                                    progress validation ──> runtime.py + logbook.py
+```
+
+## Technology Decision
+
+Implementation language: **Python 3, standard library only** (target 3.9, the system
+interpreter at `/usr/bin/python3`).
+
+Rationale: the orchestrator must parse Markdown fields, read and write JSON runtime
+state, read JSON configuration, manage subprocesses and exit codes, and be unit
+testable without live model runs. Bash would require `jq` (new infrastructure,
+contrary to §2) and offers no practical way to unit test routing rules. No third-party
+packages are used, so there is no virtualenv, lockfile or install step.
+
+Configuration format is JSON rather than the YAML sketched in §24; §24 explicitly
+permits the format to be chosen during implementation, and JSON removes a dependency.
+
+## Working Directory Rule
+
+All commands operate on the current working directory. `project-state.md`,
+`.ai-run-state.json` and `.ai-run.log` are resolved relative to it. The orchestrator
+never searches parent directories and never reads `$AI_PLATFORM/project-state.md`
+unless that is the working directory.
+
+---
+
+# 3. Component Responsibilities
+
+## `state.py`
+
+Parses `project-state.md` into an immutable snapshot. Fields extracted:
+
+```text
+Project / Name
+Workflow / Status
+Workflow / Active Phase
+Workflow / Current Role
+Workflow / Next Role
+Workflow / Next Action
+Git / Branch
+Execution / Implementation
+Execution / QA
+Execution / Review
+Escalation / Human Intervention Required
+Escalation / Reason
+```
+
+Parsing rules: a field is `^\s*<Label>:\s*(.*)$` within its section. Values are
+stripped. A missing required field is a fatal parse error. Never repairs, never
+infers, never writes.
+
+Interface:
+
+```python
+class ProjectState(NamedTuple):
+    name: str
+    status: str
+    active_phase: str
+    current_role: str
+    next_role: str
+    next_action: str
+    branch: str
+    implementation: str
+    qa: str
+    review: str
+    human_intervention: bool
+    reason: str
+    raw: dict          # every parsed label -> value
+
+def read_project_state(path: str) -> ProjectState   # raises InvalidStateError
+def progress_snapshot(s: ProjectState) -> dict      # §21 fields only
+```
+
+## `config.py`
+
+Loads `$AI_PLATFORM/config/ai-run.json`, then shallow-merges an optional project-local
+`.ai-run.json` over it (`roles` merged per key, `limits` merged per key). Validates
+that every runner referenced by routing has a non-empty `command` list.
+
+Schema:
+
+```json
+{
+  "kickoff_prompt": "Begin the workflow defined by project-state.md.",
+  "roles": {
+    "implementer":        { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v3.2"] },
+    "senior_implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
+    "debugger":           { "command": ["ai-role", "opencode", "debugger",    "-m", "openrouter/deepseek/deepseek-v3.2"] },
+    "senior_debugger":    { "command": ["ai-role", "opencode", "debugger",    "-m", "openrouter/deepseek/deepseek-v4-pro"] },
+    "git":                { "command": ["ai-role", "opencode", "git",         "-m", "openrouter/deepseek/deepseek-v4-flash"] },
+    "tester":             { "command": ["ai-role", "claude", "tester",   "--model", "sonnet", "--permission-mode", "auto"] },
+    "reviewer":           { "command": ["ai-role", "claude", "reviewer", "--model", "sonnet", "--permission-mode", "auto"] },
+    "designer":           { "command": ["ai-role", "claude", "designer", "--model", "sonnet", "--permission-mode", "auto"] }
+  },
+  "limits": {
+    "senior_debugger_max": 3,
+    "designer_max": 2,
+    "phase_max_executions": 15
+  }
+}
+```
+
+The kickoff prompt is appended as the final argument of every launch, and
+`AI_ROLE_BATCH=1` is set in the child environment.
+
+## `runtime.py`
+
+Owns `.ai-run-state.json`:
+
+```json
+{
+  "schema": 1,
+  "phase": "Phase 13",
+  "counters": {
+    "implementer": 1, "senior_implementer": 0, "designer": 0,
+    "tester": 3, "debugger": 1, "senior_debugger": 2,
+    "reviewer": 0, "git": 0
+  },
+  "total_runs": 7
+}
+```
+
+Reconciliation on load (§29):
+
+* file absent → initialise counters at zero for the current `Active Phase`
+* `phase` equals current `Active Phase` → retain counters
+* `phase` differs → reset all counters to zero and set `phase` (§19)
+* unparseable JSON, wrong `schema`, missing `counters`, negative or non-integer
+  counter, or `total_runs` less than the sum of counters → `StopRequired`
+
+Counters are incremented only after a launch is attempted, and persisted before
+progress validation so an interrupted run cannot under-count.
+
+## `routing.py`
+
+Pure function, no I/O. Normalises `Next Role` by lowercasing, stripping and collapsing
+internal whitespace, then applies:
+
+| Normalised `Next Role` | Resolution |
+|---|---|
+| `architect` | STOP — Architect must never be launched (§12) |
+| `ui designer`, `designer` | `designer` runner, while `designer` count < `designer_max` |
+| `implementer` | `implementer` if `implementer` count == 0, otherwise `senior_implementer` (§7) |
+| `tester` | `tester` (§9) |
+| `debugger` | `debugger` if `debugger` count == 0, otherwise `senior_debugger` (§8) |
+| `reviewer` | `reviewer` (§10) |
+| `git assistant`, `git` | `git` (§11) |
+| `none`, empty | STOP — workflow idle |
+| anything else | STOP — unknown role (§22) |
+
+Limit checks applied in this order, each producing a distinct stop reason:
+
+1. `Human Intervention Required: Yes` → STOP (§13)
+2. `Next Role: Architect` → STOP (§12)
+3. `Active Phase` absent or `None` while a role other than Architect is requested → STOP (§22)
+4. unknown or idle `Next Role` → STOP (§22)
+5. `total_runs >= phase_max_executions` → STOP (§20)
+6. resolution is `senior_debugger` and `senior_debugger` count >= `senior_debugger_max` → STOP (§8)
+7. resolution is `designer` and `designer` count >= `designer_max` → STOP
+
+Interface:
+
+```python
+class Decision(NamedTuple):
+    action: str          # "launch" | "stop"
+    logical_role: str
+    runner: str          # "" when stopping
+    reason: str
+    rule: str            # spec section reference, e.g. "§8"
+
+def resolve(state: ProjectState, counters: dict, limits: dict) -> Decision
+```
+
+## `guards.py`
+
+Two independent guards.
+
+**Ignore guard** (runs at startup of every command, including dry-run): `.ai-run-state.json`
+and `.ai-run.log` must be ignored by git in the working directory. Verified with
+`git check-ignore -q <path>`. Failure stops with a message naming the two paths.
+Skipped when the working directory is not a git repository.
+
+**Git handoff guard** (§27, runs only when the resolved decision is `launch` and
+`Next Role` is `Tester`):
+
+1. working directory is a git repository
+2. current branch equals `Git / Branch` in `project-state.md`
+3. `git status --porcelain` is empty
+4. an upstream exists: `git rev-parse --abbrev-ref --symbolic-full-name @{u}`
+5. `git fetch <remote> <branch>` succeeds, then local `HEAD` equals the upstream commit
+
+Any failure stops with a role-contract-violation message. The guard never commits,
+stages, pushes or otherwise mutates the repository.
+
+## `launcher.py`
+
+Builds `command + [kickoff_prompt]`, sets `AI_ROLE_BATCH=1` in a copy of the
+environment, and runs it with `subprocess.run` in the working directory, inheriting
+stdin, stdout and stderr so role output remains visible. No timeout in this version.
+A non-zero exit code stops automation with no retry (§23).
+
+## `logbook.py`
+
+Appends single lines to `.ai-run.log`:
+
+```text
+13:04:11 Phase 13 | launch  | Implementer -> implementer (o-dev tier)
+13:18:42 Phase 13 | done    | Implementer exit=0 next=Tester
+13:18:42 Phase 13 | stop    | §8 senior debugger limit reached
+```
+
+Orchestration events only. Never role output, findings or reasoning.
+
+## `__main__.py`
+
+Subcommands `next`, `run-phase`, `run`. `next` accepts `--dry-run`.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | transition completed, or loop finished normally |
+| 2 | stopped, human action required (escalation, limits, Architect, no progress) |
+| 3 | runtime failure (non-zero child exit) |
+| 4 | invalid or unparseable workflow state / configuration |
+
+## Progress Validation (§21)
+
+After the child exits, `project-state.md` is re-read. Progress occurred if **any** of:
+
+* `Human Intervention Required` changed to `Yes`
+* `Active Phase` changed
+* `Next Role` differs from the logical role just invoked
+
+Otherwise automation stops with exit code 2. This single rule also satisfies §9
+(a Tester-to-Tester self-transition is not progress) and §22 (a role returning itself
+as next role).
+
+## Phase-Advance Guardrail
+
+When the logical role just invoked was `Git Assistant` and the child exited zero:
+if `Next Role` is `Implementer` but `Active Phase` is unchanged, stop with exit code 2
+and the reason "Git Assistant did not advance Active Phase". This prevents the next
+phase's first Implementer invocation from wrongly resolving to the senior tier.
+
+## Loop Semantics
+
+`ai-run-phase`: repeat `next` while the decision is `launch` and `Active Phase` is
+unchanged from the value observed at loop start. Exit 0 when the phase completes
+(`Active Phase` changes, or `Next Role` becomes `Architect`/`None`); propagate any
+stop code otherwise.
+
+`ai-run`: repeat `next` unconditionally until a stop. A change in `Active Phase` is
+not a stop; counters reset via `runtime.py` and the loop continues (§17).
+
+---
+
+# 4. Implementation Phases
+
+## Phase 1 — Platform Preparation
+
+**Objective:** make non-interactive role execution and phase advancement possible
+before any orchestrator code exists.
+
+**Scope:**
+
+* `bin/ai-role`: add batch mode, selected by `AI_ROLE_BATCH=1`.
+  * claude: `claude -p --append-system-prompt "$COMBINED_PROMPT" "$@"`
+  * opencode: split the final argument off as the message; run
+    `opencode run --auto "${RUNTIME_ARGS[@]}" "$COMBINED_PROMPT\n\n$MESSAGE"`
+  * Interactive behaviour when `AI_ROLE_BATCH` is unset must be byte-identical to today.
+* `bin/ai-role`: add `AI_ROLE_DRYRUN=1`, which prints the fully resolved command it
+  would `exec` (one argument per line) and exits 0 without launching a runtime.
+* `tests/fixtures/ai-role-baseline/`: **before** modifying `bin/ai-role`, capture the
+  exact argument vector today's script would `exec` for every alias form defined in
+  `~/.zshrc` — `c-ta`, `c-design`, `c-test`, `c-rev`, `c-sdev`, `c-pdebug`, `o-dev`,
+  `o-devr1`, `o-sdev`, `o-debug`, `o-sdebug`, `o-git`. Capture method: copy the
+  unmodified script and replace its two `exec` lines with `printf '%s\n'`. One fixture
+  file per alias form, committed as the regression baseline.
+* `prompts/role-git.md`: add a Phase Advancement responsibility — after successful
+  integration of an approved phase, set `Active Phase` to the next phase from
+  `myplan.md` and `Next Role` to the role that phase requires; if `myplan.md` has no
+  further phase, set `Next Role: Architect`.
+* `.gitignore`: add `.ai-run-state.json` and `.ai-run.log`; mirror into
+  `templates/` guidance.
+* `config/ai-run.json`: create with the schema in §3.
+
+**Acceptance criteria:**
+
+1. `AI_ROLE_DRYRUN=1 AI_ROLE_BATCH=1 ai-role claude tester --model sonnet --permission-mode auto "Begin the workflow defined by project-state.md."` prints a command beginning `claude -p --append-system-prompt` and containing the kickoff prompt as the last argument; exit 0; no runtime launched.
+2. The equivalent opencode invocation prints a command beginning `opencode run --auto`, containing `-m <model>`, with a single final message argument that contains both the role prompt text and the kickoff prompt.
+3. With `AI_ROLE_BATCH` unset, `AI_ROLE_DRYRUN=1` output is **byte-identical** to the captured baseline for every alias form in `tests/fixtures/ai-role-baseline/`. This is the regression guarantee for the manual workflow (§30): any drift in prompt composition, argument order, flag set or whitespace fails the phase.
+4. `ai-role` with an unknown runtime or missing role file still fails with the existing messages and non-zero exit.
+5. `prompts/role-git.md` contains the phase-advance responsibility.
+6. `git check-ignore -q .ai-run-state.json && git check-ignore -q .ai-run.log` succeeds in this repository.
+7. `config/ai-run.json` parses as JSON and contains all eight runners plus the three limits.
+
+**Deferred to later phases:** all orchestrator code.
+
+## Phase 2 — Project State Parser
+
+**Objective:** deterministic, read-only parsing of `project-state.md`.
+
+**Scope:** `airun/__init__.py`, `airun/errors.py`, `airun/state.py`, and a fixture
+directory `tests/fixtures/state/` containing valid, malformed and partial examples.
+
+**Acceptance criteria:**
+
+1. A copy of `templates/project-state.md` parses, yielding `next_role == "Architect"`, `active_phase == "None"`, `human_intervention is False`.
+2. A fixture with `Human Intervention Required: Yes` yields `human_intervention is True`.
+3. A fixture missing the `Next Role` field raises `InvalidStateError` naming the field.
+4. A fixture with a duplicated `Next Role` in two sections raises `InvalidStateError`.
+5. A non-existent path raises `InvalidStateError`.
+6. Leading and trailing whitespace around values is stripped; internal spacing preserved.
+7. `progress_snapshot` returns exactly the §21 fields.
+8. `state.py` performs no writes and imports nothing outside the standard library.
+
+**Deferred:** routing, counters, execution.
+
+## Phase 3 — Configuration and Runtime State
+
+**Objective:** load runner configuration and manage phase counters with safe
+reconciliation.
+
+**Scope:** `airun/config.py`, `airun/runtime.py`, fixtures under `tests/fixtures/runtime/`.
+
+**Acceptance criteria:**
+
+1. `load_config` reads `$AI_PLATFORM/config/ai-run.json` and returns all eight runners and three limits.
+2. A project-local `.ai-run.json` overriding `limits.phase_max_executions` and one runner command produces a merged config with all other values unchanged.
+3. A config whose runner has an empty or missing `command` raises `InvalidStateError`.
+4. Missing `.ai-run-state.json` initialises all counters to zero with `phase` set to the current `Active Phase`.
+5. A state file whose `phase` matches retains its counters.
+6. A state file whose `phase` differs resets every counter to zero and `total_runs` to zero, and records the new phase.
+7. Unparseable JSON, `schema != 1`, a missing `counters` key, a negative counter, or `total_runs` less than the sum of counters each raise `StopRequired` with a distinct reason.
+8. `save` writes atomically (temporary file plus rename) and round-trips exactly.
+
+**Deferred:** routing decisions, git guards, execution.
+
+## Phase 4 — Routing Engine
+
+**Objective:** implement every routing and limit rule as a pure function.
+
+**Scope:** `airun/routing.py` and its unit tests.
+
+**Acceptance criteria:**
+
+1. `Next Role: Implementer` with `implementer == 0` resolves to runner `implementer`.
+2. `Next Role: Implementer` with `implementer == 1` resolves to `senior_implementer`, and does so for every subsequent count.
+3. `Next Role: Debugger` with `debugger == 0` resolves to `debugger`.
+4. `Next Role: Debugger` with `debugger == 1` resolves to `senior_debugger`.
+5. `senior_debugger == 3` with `Next Role: Debugger` stops with rule `§8`.
+6. `Next Role: Architect` stops with rule `§12`, regardless of counters.
+7. `Human Intervention Required: Yes` stops with rule `§13`, and is checked before role resolution so it stops even when `Next Role` is Architect or unknown.
+8. `Next Role: Reviewer`, `Tester`, `Git Assistant`, `UI Designer` resolve to `reviewer`, `tester`, `git`, `designer`.
+9. `Next Role: Designer` (without "UI") also resolves to `designer`.
+10. `Next Role: Nonsense` stops with rule `§22`.
+11. `Next Role: None` or empty stops as idle.
+12. `total_runs == phase_max_executions` stops with rule `§20` before any role-specific limit is evaluated.
+13. `Active Phase: None` with `Next Role: Implementer` stops with rule `§22`.
+14. Role matching is case- and whitespace-insensitive (`next role: git   assistant` resolves to `git`).
+15. `resolve` performs no file, subprocess or network access.
+
+**Deferred:** git validation, launching, logging.
+
+## Phase 5 — `ai-next --dry-run`
+
+**Objective:** a working, non-executing command that satisfies the routing acceptance
+criteria end to end.
+
+**Scope:** `airun/__main__.py` (subcommand `next`, `--dry-run` only), `bin/ai-next`,
+`airun/logbook.py`.
+
+**Acceptance criteria:**
+
+1. `bin/ai-next` is executable, sets `PYTHONPATH` to `$AI_PLATFORM`, and execs `python3 -m airun next "$@"`.
+2. `ai-next --dry-run` prints, at minimum: Project, Active Phase, Status, logical Next Role, resolved runner, current phase counters, the exact command that would be executed, and the reason for any escalation decision (§15).
+3. The printed command is the configured runner command plus the kickoff prompt as its final argument.
+4. Dry-run launches no runtime: verified by pointing a runner at a script that writes a sentinel file and asserting the file is absent.
+5. Dry-run writes no `.ai-run-state.json` and appends no `.ai-run.log` entry.
+6. Dry-run against an Architect state prints the stop reason, active phase, current status and current deliverable pointers, and exits 2 (§12).
+7. Dry-run against a malformed `project-state.md` exits 4.
+8. Dry-run in a directory where `.ai-run-state.json` is not git-ignored exits 4 naming both runtime paths.
+9. Exit code is 0 when the decision is `launch`.
+
+**Deferred:** real execution, git handoff guard, loops.
+
+## Phase 6 — Guards
+
+**Objective:** enforce the code-handoff contract and the ignore-file precondition.
+
+**Scope:** `airun/guards.py`, wired into the `next` command ahead of launching;
+test fixtures using temporary local git repositories.
+
+**Acceptance criteria:**
+
+1. With `Next Role: Tester` and an uncommitted modification present, `ai-next --dry-run` stops with a role-contract violation and exits 2.
+2. With `Next Role: Tester` and a committed but unpushed commit, it stops and exits 2.
+3. With `Next Role: Tester`, a clean tree, an upstream, and local `HEAD` equal to upstream, it proceeds.
+4. With `Next Role: Tester` and no upstream configured, it stops and exits 2.
+5. With `Next Role: Tester` and the current branch differing from `Git / Branch`, it stops and exits 2.
+6. The guard is not applied when `Next Role` is anything other than `Tester`.
+7. No guard path ever runs `git add`, `git commit`, `git push`, `git checkout` or `git reset`; only `status`, `rev-parse`, `fetch`, `check-ignore` and `symbolic-ref` are used.
+8. A working directory that is not a git repository stops with a clear message when `Next Role: Tester`, and does not stop the ignore guard.
+
+**Deferred:** launching, loops.
+
+## Phase 7 — Live Single-Step Execution
+
+**Objective:** complete `ai-next` — launch, wait, validate progress, update counters, log.
+
+**Scope:** `airun/launcher.py`, `next` without `--dry-run`, progress validation, the
+phase-advance guardrail, runtime failure handling.
+
+**Acceptance criteria:**
+
+1. With a stub runner configured, `ai-next` launches it exactly once, waits for it to exit, and returns.
+2. `AI_ROLE_BATCH=1` is present in the child environment; the parent environment is otherwise inherited.
+3. The child's stdout and stderr appear on the parent's streams.
+4. A stub that advances `Next Role` from `Implementer` to `Tester` causes exit 0, `implementer` counter 1, `total_runs` 1, and one launch plus one completion line in `.ai-run.log`.
+5. A stub that exits 0 without changing `Next Role` causes exit 2 with a message naming the phase, the role and the unchanged `Next Role`; the counter is still incremented; no second launch occurs (§21).
+6. A stub that exits non-zero causes exit 3 with a message reporting phase, logical role, runner, exit status and current state; no retry occurs (§23).
+7. A stub that sets `Human Intervention Required: Yes` counts as progress and exits 0; the following `ai-next` exits 2.
+8. A stub acting as Git Assistant that sets `Next Role: Implementer` without changing `Active Phase` causes exit 2 with the phase-advance guardrail message.
+9. A stub acting as Git Assistant that sets `Next Role: Implementer` and advances `Active Phase` exits 0.
+10. `ai-next` never launches a second role in one invocation (§14): verified by a stub that appends to a counter file.
+11. Counters are persisted before progress validation, so a stop still records the execution.
+
+**Deferred:** the two loop commands.
+
+## Phase 8 — Loop Commands, Test Harness and Documentation
+
+**Objective:** deliver `ai-run-phase` and `ai-run`, an offline stub harness proving
+the full-phase and cross-phase paths, and user documentation.
+
+**Scope:** `run-phase` and `run` subcommands, `bin/ai-run-phase`, `bin/ai-run`,
+`tests/stub/` (a scripted runner that rewrites a fixture `project-state.md` according
+to a scenario file), a runner-override fixture project carrying its own `.ai-run.json`,
+README section, and `specification/` cross-reference.
+
+**Acceptance criteria:**
+
+1. A stub scenario driving `Implementer → Tester(FAIL) → Debugger → Tester(PASS) → Reviewer → Git` completes under `ai-run-phase` with exit 0, `total_runs == 6`, and runner sequence `implementer, tester, debugger, tester, reviewer, git`.
+2. `ai-run-phase` exits 0 without starting the next phase when `Active Phase` changes (§16).
+3. A stub scenario of two consecutive phases completes under `ai-run` with exit 0, and the second phase's first Implementer resolves to `implementer`, not `senior_implementer` (counters reset, §19).
+4. A stub scenario forcing four Debugger requests in one phase stops at the third `senior_debugger` with exit 2 and rule `§8`.
+5. A stub scenario producing 15 executions stops before the sixteenth with exit 2 and rule `§20`.
+6. A stub scenario setting `Next Role: Architect` stops both loops with exit 2 (§12).
+7. A stub scenario setting `Human Intervention Required: Yes` stops both loops with exit 2 (§13).
+8. A stub returning a non-zero exit stops both loops with exit 3 and no retry (§23).
+9. Running `o-dev`, `c-test`, `c-rev`, `o-git` and the other aliases manually still works unchanged (§30) — verified via `AI_ROLE_DRYRUN=1`.
+10. Replacing the `reviewer` command in a project-local `.ai-run.json` changes the runner that `ai-next --dry-run` resolves and prints, with no modification to any Python source file. The global `config/ai-run.json` is unread for that key, and a second fixture project without the override still resolves the global command. Runner reassignment is therefore a tested guarantee, not documentation.
+11. `project-state.md` in every fixture contains no orchestrator counters or execution history after the harness runs (§18, acceptance criterion 18).
+12. README documents the four commands, the config file, the runtime files, the stop exit codes, and how to reassign a runner globally or per project.
+
+**Deferred:** everything listed in specification §32.
+
+---
+
+# 5. Specification Acceptance Criteria Coverage
+
+| Spec §33 criterion | Delivered by |
+|---|---|
+| 1. Dry-run resolves every supported role | Phase 4 AC 1–11, Phase 5 AC 2 |
+| 2. First Implementer → ordinary | Phase 4 AC 1 |
+| 3. Later Implementer → senior | Phase 4 AC 2 |
+| 4. First Debugger → ordinary | Phase 4 AC 3 |
+| 5. Later Debugger → senior | Phase 4 AC 4 |
+| 6. Senior Debugger max 3 | Phase 4 AC 5, Phase 8 AC 4 |
+| 7. Architect always stops | Phase 4 AC 6, Phase 5 AC 6, Phase 8 AC 6 |
+| 8. Human intervention always stops | Phase 4 AC 7, Phase 8 AC 7 |
+| 9. Unknown/malformed always stops | Phase 2 AC 3–5, Phase 4 AC 10, Phase 5 AC 7 |
+| 10. Non-advancing role stops | Phase 7 AC 5 |
+| 11. Uncommitted/unpushed Tester handoff rejected | Phase 6 AC 1–5 |
+| 12. `ai-run-phase` completes a phase | Phase 8 AC 1–2 |
+| 13. `ai-run` continues into next phase | Phase 8 AC 3 |
+| 14. Counters reset on phase change | Phase 3 AC 6, Phase 8 AC 3 |
+| 15. Phase circuit breaker | Phase 4 AC 12, Phase 8 AC 5 |
+| 16. Runtime failures stop, no retry | Phase 7 AC 6, Phase 8 AC 8 |
+| 17. Manual invocation unaffected | Phase 1 AC 3–4, Phase 8 AC 9 |
+| 18. `project-state.md` free of counters | Phase 3 (counters only in `.ai-run-state.json`), Phase 8 AC 11 |
+
+---
+
+# 6. Technical Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| `opencode run` has no system-prompt flag; the composed lifecycle plus role prompt must be sent as the message body. | Full prompt cost on every OpenCode invocation, same as today's TUI path. | Accepted — matches existing behaviour. Prompt composition stays in `ai-role`, so any future flag is a one-line change. |
+| `claude -p --permission-mode auto` grants broad autonomy with no human in the loop. | An unattended role can make wide changes. | Guardrails (circuit breaker, progress validation, git handoff guard) bound the blast radius. `ai-next --dry-run` is the documented way to validate routing before enabling loops. |
+| No per-role timeout in this version. | A hung runtime blocks the loop indefinitely. | Accepted for v1; the user can interrupt. A `timeout` key in `limits` is a contained future addition. |
+| `git fetch` in the handoff guard requires network access. | Guard fails when offline. | Failure stops automation with a clear message rather than proceeding on stale information — consistent with fail-closed. |
+| System Python is 3.9. | 3.10+ syntax would break at import. | No `match`, no `X | Y` annotations, no `dict | dict`. Enforced by running the suite on `/usr/bin/python3`. |
+| Phase advancement depends on the Git Assistant honouring an instruction in its prompt. | Cross-phase automation silently mis-tiers the next Implementer. | Phase 1 makes the responsibility explicit; Phase 7 AC 8 adds a deterministic guardrail that stops rather than mis-routing. |
+
+---
+
+# 7. Out of Scope
+
+Everything listed in specification §32, plus: per-role timeouts, retry of failed
+runtimes, parsing of agent output for intent, and any automatic repair of
+`project-state.md`.

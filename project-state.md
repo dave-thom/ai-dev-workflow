@@ -20,15 +20,15 @@ Name: AI Platform v2.0
 
 ## Workflow
 
-Status: Awaiting Re-Test
+Status: Awaiting Review
 
 Active Phase: Phase 2
 
-Current Role: Debugger
+Current Role: Tester
 
-Next Role: Tester
+Next Role: Reviewer
 
-Next Action: Re-test Phase 2 — AC1 should now pass, all 8 ACs should succeed
+Next Action: Review Phase 2 implementation (airun/state.py, airun/errors.py) for code review sign-off
 
 ---
 
@@ -42,7 +42,7 @@ Branch: main
 
 Implementation: COMPLETE
 
-QA: RE_TEST
+QA: PASS
 
 Review: NOT_STARTED
 
