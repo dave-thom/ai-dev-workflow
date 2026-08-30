@@ -20,15 +20,15 @@ Name: AI Platform v2.0
 
 ## Workflow
 
-Status: Ready for Testing
+Status: Awaiting Re-Test
 
 Active Phase: Phase 2
 
-Current Role: None
+Current Role: Debugger
 
 Next Role: Tester
 
-Next Action: Test Phase 2 project state parser implementation
+Next Action: Re-test Phase 2 — AC1 should now pass, all 8 ACs should succeed
 
 ---
 
@@ -42,7 +42,7 @@ Branch: main
 
 Implementation: COMPLETE
 
-QA: NOT_STARTED
+QA: RE_TEST
 
 Review: NOT_STARTED
 
@@ -54,9 +54,9 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: None
+QA Report: docs/qa/phase-2-qa-report.md
 
-Debug Report: None
+Debug Report: docs/debug/phase-2-debug-report.md
 
 Review Report: None
 
