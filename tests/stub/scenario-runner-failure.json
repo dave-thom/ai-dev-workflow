@@ -1,0 +1,6 @@
+[
+  {
+    "description": "Implementer crashes with non-zero exit",
+    "exit_code": 1
+  }
+]
