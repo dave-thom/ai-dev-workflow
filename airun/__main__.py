@@ -345,6 +345,13 @@ def run_command(args: argparse.Namespace) -> int:
             if exit_code != 0:
                 return exit_code
             
+            # Reload project state to check for idle completion
+            project_state = read_project_state(state_path)
+            next_role_lower = project_state.next_role.lower().strip()
+            if next_role_lower in ("architect", "", "none"):
+                print(f"Workflow completed", file=sys.stderr)
+                return 0
+            
             loop_count += 1
         
         print("Safety limit reached: loop_count >= 1000", file=sys.stderr)

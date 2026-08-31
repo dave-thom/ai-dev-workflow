@@ -236,6 +236,8 @@ def test_cross_phase():
         if result.stderr:
             print(result.stderr)
 
+        assert result.returncode == 0, f"Expected 0, got {result.returncode}"
+
         state = _read_state(test_dir)
         print(json.dumps(state, indent=2))
 

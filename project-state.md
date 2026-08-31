@@ -24,11 +24,11 @@ Status: In Progress
 
 Active Phase: Phase 8b
 
-Current Role: Implementer
+Current Role: Debugger
 
 Next Role: Tester
 
-Next Action: Test Phase 8b (tests/test_phase8b.py) — four stub scenarios: phase boundary, cross-phase counter reset, debugger limit, phase execution limit
+Next Action: Re-test AC2 — ai-run cross-phase exits 0; all Phase 8b ACs pass (tests/test_phase8b.py)
 
 ---
 
@@ -42,7 +42,7 @@ Branch: main
 
 Implementation: COMPLETED
 
-QA: NOT_STARTED
+QA: RE_TEST
 
 Review: NOT_STARTED
 
@@ -54,9 +54,9 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: None
+QA Report: docs/qa/phase-8b-qa-report.md
 
-Debug Report: None
+Debug Report: docs/debug/phase-8b-debug-report.md
 
 Review Report: None
 
