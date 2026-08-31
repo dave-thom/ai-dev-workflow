@@ -21,7 +21,7 @@ configuration and installed runtimes before planning. Findings and their resolut
 | 6 | §13's non-`project-state` triggers ("role reports architecture must change") require reading agent output, which is inference and forbidden by §2. | Detection is via `Human Intervention Required: Yes` only. Agent output is never parsed. |
 | 7 | `.ai-run-state.json` and `.ai-run.log` live in the project directory and would dirty the working tree, failing the orchestrator's own §27 clean-tree check. | Startup guard requires both paths to be git-ignored. |
 | 8 | `Status` has no defined vocabulary, so §17's "plan complete / idle" stop condition is not deterministic. | Completion and idle are detected from `Next Role` (`Architect`, `None`, unknown) and `Human Intervention Required`, never from `Status` text. |
-| 9 | Acceptance criteria 12–13 cannot be tested without live paid model runs. | Runner commands are configurable, so a stub-runner fixture exercises both offline (Phase 8). |
+| 9 | Acceptance criteria 12–13 cannot be tested without live paid model runs. | Runner commands are configurable, so a stub-runner fixture exercises both offline (Phases 8a–8c). |
 
 ---
 
@@ -490,33 +490,76 @@ phase-advance guardrail, runtime failure handling.
 
 **Deferred:** the two loop commands.
 
-## Phase 8 — Loop Commands, Test Harness and Documentation
+## Phase 8a — Loop Commands, Stub Harness and Documentation
 
-**Objective:** deliver `ai-run-phase` and `ai-run`, an offline stub harness proving
-the full-phase and cross-phase paths, and user documentation.
+**Delivered.** Verified by `docs/qa/phase-8-qa-report-3.md`. Not to be re-implemented.
+
+**Objective:** deliver `ai-run-phase` and `ai-run`, the scenario-driven stub runner,
+the runner-override fixture, and user documentation.
 
 **Scope:** `run-phase` and `run` subcommands, `bin/ai-run-phase`, `bin/ai-run`,
-`tests/stub/` (a scripted runner that rewrites a fixture `project-state.md` according
-to a scenario file), a runner-override fixture project carrying its own `.ai-run.json`,
-README section, and `specification/` cross-reference.
+`tests/stub/stub-runner.py`, `tests/stub/scenario-implementer-to-git.json`,
+`tests/fixtures/runner-override-project/`, `tests/test_phase8.py`, README orchestrator
+section, `specification/` cross-reference.
 
 **Acceptance criteria:**
 
 1. A stub scenario driving `Implementer → Tester(FAIL) → Debugger → Tester(PASS) → Reviewer → Git` completes under `ai-run-phase` with exit 0, `total_runs == 6`, and runner sequence `implementer, tester, debugger, tester, reviewer, git`.
-2. `ai-run-phase` exits 0 without starting the next phase when `Active Phase` changes (§16).
-3. A stub scenario of two consecutive phases completes under `ai-run` with exit 0, and the second phase's first Implementer resolves to `implementer`, not `senior_implementer` (counters reset, §19).
-4. A stub scenario forcing four Debugger requests in one phase stops at the third `senior_debugger` with exit 2 and rule `§8`.
-5. A stub scenario producing 15 executions stops before the sixteenth with exit 2 and rule `§20`.
-6. A stub scenario setting `Next Role: Architect` stops both loops with exit 2 (§12).
-7. A stub scenario setting `Human Intervention Required: Yes` stops both loops with exit 2 (§13).
-8. A stub returning a non-zero exit stops both loops with exit 3 and no retry (§23).
-9. Running `o-dev`, `c-test`, `c-rev`, `o-git` and the other aliases manually still works unchanged (§30) — verified via `AI_ROLE_DRYRUN=1`.
-10. Replacing the `reviewer` command in a project-local `.ai-run.json` changes the runner that `ai-next --dry-run` resolves and prints, with no modification to any Python source file. The global `config/ai-run.json` is unread for that key, and a second fixture project without the override still resolves the global command. Runner reassignment is therefore a tested guarantee, not documentation.
-11. `project-state.md` in every fixture contains no orchestrator counters or execution history after the harness runs (§18, acceptance criterion 18).
-12. README documents the four commands, the config file, the runtime files, the stop exit codes, and how to reassign a runner globally or per project.
+2. Running `o-dev`, `c-test`, `c-rev`, `o-git` and the other aliases manually still works unchanged (§30) — verified via `AI_ROLE_DRYRUN=1`.
+3. Replacing the `reviewer` command in a project-local `.ai-run.json` changes the runner that `ai-next --dry-run` resolves and prints, with no modification to any Python source file. The global `config/ai-run.json` is unread for that key, and a second fixture project without the override still resolves the global command. Runner reassignment is therefore a tested guarantee, not documentation.
+4. `project-state.md` in every fixture contains no orchestrator counters or execution history after the harness runs (§18, acceptance criterion 18).
+5. README documents the four commands, the config file, the runtime files, the stop exit codes, and how to reassign a runner globally or per project.
+
+**Deferred:** the scenarios proving loop continuation and the stop conditions — Phases 8b and 8c.
+
+## Phase 8b — Loop Continuation and Circuit Breaker Scenarios
+
+**Objective:** prove the phase-boundary, counter-reset and circuit-breaker paths with
+offline stub scenarios.
+
+**Scope:** four new scenario files under `tests/stub/` and their test functions in a
+new `tests/test_phase8b.py`, following the structure of `tests/test_phase8.py`
+(`setup_test_directory()`, `git init -b main`, `.gitignore` covering
+`.ai-run-state.json`, `.ai-run.log` and `.ai-run.json`).
+
+No change to `airun/`, `bin/`, `config/`, `README.md`, `tests/stub/stub-runner.py`
+or `tests/test_phase8.py`. The existing scenario schema — `description`, `next_role`,
+`active_phase`, `human_intervention`, `reason`, `exit_code` — expresses every scenario
+required by this phase and by Phase 8c. If a required scenario cannot be expressed
+within it, stop and escalate rather than extending the schema.
+
+**Acceptance criteria:**
+
+1. Under `ai-run-phase`, a scenario whose final step changes `Active Phase` exits 0, launches no runner for the new phase, and records `total_runs` equal to that scenario's step count (§16).
+2. Under `ai-run`, a scenario spanning two consecutive phases exits 0; the second phase's first Implementer resolves to `implementer`, not `senior_implementer`; and after the phase boundary `.ai-run-state.json` shows `phase` set to the second phase with per-role counters and `total_runs` reset, so `total_runs` reflects only the second phase's executions (§19).
+3. A scenario issuing five Debugger requests in one phase launches `debugger` once and `senior_debugger` three times, then stops on the fifth request with exit 2 and rule `§8` (`senior_debugger_max == 3`).
+4. A scenario producing 15 executions in one phase stops before the sixteenth with exit 2 and rule `§20` (`phase_max_executions == 15`).
+
+**Scenario design constraints:**
+
+* The stub runner commits and pushes after every step, so the git handoff guard is satisfied at Tester transitions; scenarios must not otherwise dirty the working tree.
+* Criterion 4's scenario must not route through Git Assistant mid-phase — a Git Assistant step that sets `Next Role: Implementer` without advancing `Active Phase` trips the phase-advance guardrail (Phase 7 AC 8) and stops the loop before the execution limit is reached. Alternating `Implementer`/`Tester` reaches 15 executions without tripping any role-specific limit.
+* Criterion 3's scenario must keep `total_runs` below 15 so that `§20` cannot pre-empt `§8`; routing evaluates the phase execution limit before role-specific limits (Phase 4 AC 12).
+
+**Deferred:** the three hard-stop scenarios — Phase 8c.
+
+## Phase 8c — Stop Condition Scenarios
+
+**Objective:** prove that both loop commands halt on Architect handoff, human
+intervention and runner failure.
+
+**Scope:** three new scenario files under `tests/stub/` and their test functions in a
+new `tests/test_phase8c.py`. Same constraints as Phase 8b: no change to `airun/`,
+`bin/`, `config/`, `README.md`, `stub-runner.py` or the earlier test files.
+
+**Acceptance criteria:**
+
+1. A scenario setting `Next Role: Architect` stops both `ai-run-phase` and `ai-run` with exit 2 and rule `§12`, and launches no further runner (§12).
+2. A scenario setting `Human Intervention Required: Yes` stops both `ai-run-phase` and `ai-run` with exit 2 and rule `§13`, and launches no further runner (§13).
+3. A stub step returning a non-zero exit stops both `ai-run-phase` and `ai-run` with exit 3, reporting phase, logical role, runner and exit status, with no retry and no subsequent launch (§23).
+4. In all three scenarios the executed step's counter is still recorded in `.ai-run-state.json`, so a stop does not lose the execution (Phase 7 AC 11).
 
 **Deferred:** everything listed in specification §32.
-
 ---
 
 # 5. Specification Acceptance Criteria Coverage
@@ -528,19 +571,19 @@ README section, and `specification/` cross-reference.
 | 3. Later Implementer → senior | Phase 4 AC 2 |
 | 4. First Debugger → ordinary | Phase 4 AC 3 |
 | 5. Later Debugger → senior | Phase 4 AC 4 |
-| 6. Senior Debugger max 3 | Phase 4 AC 5, Phase 8 AC 4 |
-| 7. Architect always stops | Phase 4 AC 6, Phase 5 AC 6, Phase 8 AC 6 |
-| 8. Human intervention always stops | Phase 4 AC 7, Phase 8 AC 7 |
+| 6. Senior Debugger max 3 | Phase 4 AC 5, Phase 8b AC 3 |
+| 7. Architect always stops | Phase 4 AC 6, Phase 5 AC 6, Phase 8c AC 1 |
+| 8. Human intervention always stops | Phase 4 AC 7, Phase 8c AC 2 |
 | 9. Unknown/malformed always stops | Phase 2 AC 3–5, Phase 4 AC 10, Phase 5 AC 7 |
 | 10. Non-advancing role stops | Phase 7 AC 5 |
 | 11. Uncommitted/unpushed Tester handoff rejected | Phase 6 AC 1–5 |
-| 12. `ai-run-phase` completes a phase | Phase 8 AC 1–2 |
-| 13. `ai-run` continues into next phase | Phase 8 AC 3 |
-| 14. Counters reset on phase change | Phase 3 AC 6, Phase 8 AC 3 |
-| 15. Phase circuit breaker | Phase 4 AC 12, Phase 8 AC 5 |
-| 16. Runtime failures stop, no retry | Phase 7 AC 6, Phase 8 AC 8 |
-| 17. Manual invocation unaffected | Phase 1 AC 3–4, Phase 8 AC 9 |
-| 18. `project-state.md` free of counters | Phase 3 (counters only in `.ai-run-state.json`), Phase 8 AC 11 |
+| 12. `ai-run-phase` completes a phase | Phase 8a AC 1, Phase 8b AC 1 |
+| 13. `ai-run` continues into next phase | Phase 8b AC 2 |
+| 14. Counters reset on phase change | Phase 3 AC 6, Phase 8b AC 2 |
+| 15. Phase circuit breaker | Phase 4 AC 12, Phase 8b AC 4 |
+| 16. Runtime failures stop, no retry | Phase 7 AC 6, Phase 8c AC 3 |
+| 17. Manual invocation unaffected | Phase 1 AC 3–4, Phase 8a AC 2 |
+| 18. `project-state.md` free of counters | Phase 3 (counters only in `.ai-run-state.json`), Phase 8a AC 4 |
 
 ---
 

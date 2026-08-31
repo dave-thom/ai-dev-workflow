@@ -1,0 +1,27 @@
+[
+  {
+    "description": "Debugger request 1",
+    "next_role": "Debugger",
+    "exit_code": 0
+  },
+  {
+    "description": "Debugger request 2",
+    "next_role": "debugger",
+    "exit_code": 0
+  },
+  {
+    "description": "Debugger request 3",
+    "next_role": "Debugger",
+    "exit_code": 0
+  },
+  {
+    "description": "Debugger request 4",
+    "next_role": "debugger",
+    "exit_code": 0
+  },
+  {
+    "description": "Debugger request 5 (stopped by limit)",
+    "next_role": "Debugger",
+    "exit_code": 0
+  }
+]

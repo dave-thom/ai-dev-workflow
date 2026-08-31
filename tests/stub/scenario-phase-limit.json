@@ -1,0 +1,77 @@
+[
+  {
+    "description": "Implementer 1",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 1",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 2",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 2",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 3",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 3",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 4",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 4",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 5",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 5",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 6",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 6",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 7",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester 7",
+    "next_role": "Implementer",
+    "exit_code": 0
+  },
+  {
+    "description": "Implementer 8",
+    "next_role": "Tester",
+    "exit_code": 0
+  }
+]

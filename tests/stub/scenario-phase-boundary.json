@@ -1,0 +1,18 @@
+[
+  {
+    "description": "Implementer completes successfully",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester completes successfully",
+    "next_role": "Git Assistant",
+    "exit_code": 0
+  },
+  {
+    "description": "Git Assistant advances phase",
+    "next_role": "Implementer",
+    "active_phase": "Phase 9",
+    "exit_code": 0
+  }
+]

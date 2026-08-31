@@ -1,0 +1,33 @@
+[
+  {
+    "description": "Phase 8B Implementer completes",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Phase 8B Tester completes",
+    "next_role": "Git Assistant",
+    "exit_code": 0
+  },
+  {
+    "description": "Phase 8B Git advances to Phase 9",
+    "next_role": "Implementer",
+    "active_phase": "Phase 9",
+    "exit_code": 0
+  },
+  {
+    "description": "Phase 9 Implementer completes",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Phase 9 Tester completes",
+    "next_role": "Reviewer",
+    "exit_code": 0
+  },
+  {
+    "description": "Phase 9 Reviewer completes",
+    "next_role": "None",
+    "exit_code": 0
+  }
+]

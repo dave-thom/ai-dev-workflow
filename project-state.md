@@ -22,13 +22,13 @@ Name: AI Platform v2.0
 
 Status: In Progress
 
-Active Phase: Phase 8
+Active Phase: Phase 8b
 
-Current Role: Debugger
+Current Role: Implementer
 
 Next Role: Tester
 
-Next Action: Re-test fixes from docs/debug/phase-8-debug-report-2.md
+Next Action: Test Phase 8b (tests/test_phase8b.py) — four stub scenarios: phase boundary, cross-phase counter reset, debugger limit, phase execution limit
 
 ---
 
@@ -40,9 +40,9 @@ Branch: main
 
 ## Execution
 
-Implementation: READY_FOR_QA
+Implementation: COMPLETED
 
-QA: READY_FOR_RE_TEST
+QA: NOT_STARTED
 
 Review: NOT_STARTED
 
@@ -54,9 +54,9 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: docs/qa/phase-8-qa-report-2.md
+QA Report: None
 
-Debug Report: docs/debug/phase-8-debug-report-2.md
+Debug Report: None
 
 Review Report: None
 
