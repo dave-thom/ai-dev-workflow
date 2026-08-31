@@ -12,6 +12,7 @@ from airun.routing import resolve, Decision
 from airun.errors import InvalidStateError, StopRequired
 from airun.logbook import log_event
 from airun.guards import check_ignore_guard, check_git_handoff_guard
+from airun.launcher import launch_runner, check_progress, check_phase_advance_guardrail
 
 
 def parse_args() -> argparse.Namespace:
@@ -123,15 +124,14 @@ def next_command(args: argparse.Namespace) -> int:
         # Apply routing logic
         decision = resolve(project_state, routing_counters, config["limits"])
         
-        # Check ignore guard (only for dry-run - Phase 5 acceptance criterion 8)
-        if args.dry_run:
-            ignore_result = check_ignore_guard(cwd)
-            if ignore_result:
-                print(f"Ignore guard violation: {ignore_result}")
-                return 4
+        # Check ignore guard (always)
+        ignore_result = check_ignore_guard(cwd)
+        if ignore_result:
+            print(f"Ignore guard violation: {ignore_result}")
+            return 4
         
-        # Check git handoff guard for Tester role (Phase 6, dry-run only)
-        if args.dry_run and decision.action == "launch" and decision.logical_role.lower() == "tester":
+        # Check git handoff guard for Tester role (always when launching)
+        if decision.action == "launch" and decision.logical_role.lower() == "tester":
             handoff_result = check_git_handoff_guard(cwd, project_state.branch)
             if handoff_result:
                 # This should stop with exit code 2 (role-contract violation)
@@ -152,9 +152,93 @@ def next_command(args: argparse.Namespace) -> int:
             else:
                 return 4  # Should not happen
         
-        # Real execution (for Phase 7, not Phase 5)
-        print("Real execution not implemented in Phase 5", file=sys.stderr)
-        return 1
+        # Real execution
+        if decision.action == "stop":
+            # Log stop event
+            log_event(
+                log_path,
+                f"Phase {project_state.active_phase}",
+                "stop",
+                decision.logical_role,
+                decision.runner,
+                f"{decision.reason} ({decision.rule})",
+            )
+            print(f"Stop: {decision.reason} ({decision.rule})", file=sys.stderr)
+            return 2
+        
+        # Launch runner
+        runner_config = config["roles"][decision.runner]
+        
+        # Log launch event
+        log_event(
+            log_path,
+            f"Phase {project_state.active_phase}",
+            "launch",
+            decision.logical_role,
+            decision.runner,
+            None,
+        )
+        
+        # Increment counter before launching (so interrupted runs count)
+        runtime.increment_counter(decision.runner)
+        runtime.save()
+        
+        # Launch the runner
+        print(f"Launching {decision.logical_role} -> {decision.runner}...", file=sys.stderr)
+        process = launch_runner(
+            runner_config["command"],
+            config["kickoff_prompt"],
+            cwd,
+        )
+        
+        # Log completion
+        log_event(
+            log_path,
+            f"Phase {project_state.active_phase}",
+            "done",
+            decision.logical_role,
+            decision.runner,
+            f"exit={process.returncode} next={project_state.next_role}",
+        )
+        
+        # Check for runtime failure
+        if process.returncode != 0:
+            print(
+                f"Runtime failure: {decision.logical_role} ({decision.runner}) "
+                f"exited {process.returncode}",
+                file=sys.stderr,
+            )
+            return 3
+        
+        # Reload project state to check progress
+        new_project_state = read_project_state(state_path)
+        
+        # Check phase-advance guardrail
+        guardrail_error = check_phase_advance_guardrail(
+            project_state,
+            new_project_state,
+            decision.logical_role,
+        )
+        if guardrail_error:
+            print(f"Phase-advance guardrail: {guardrail_error}", file=sys.stderr)
+            return 2
+        
+        # Check progress
+        progress_made, no_progress_reason = check_progress(
+            project_state,
+            new_project_state,
+            decision.logical_role,
+        )
+        
+        if not progress_made:
+            print(
+                f"No progress: {no_progress_reason}",
+                file=sys.stderr,
+            )
+            return 2
+        
+        # Success
+        return 0
         
     except InvalidStateError as e:
         print(f"Invalid state: {e}", file=sys.stderr)
