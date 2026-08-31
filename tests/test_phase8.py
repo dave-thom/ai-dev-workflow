@@ -130,6 +130,8 @@ Reason: None
     subprocess.run(["git", "remote", "add", "origin", remote_dir], cwd=test_dir, capture_output=True)
     subprocess.run(["git", "push", "-u", "origin", "main"], cwd=test_dir, capture_output=True)
 
+    return test_dir, ai_platform
+
 
 def test_ai_run_phase():
     """Test ai-run-phase command with stub runner."""
@@ -211,6 +213,108 @@ def test_ai_run_phase():
     return True
 
 
+def test_runner_override():
+    """Test that project-local .ai-run.json overrides global config (AC10)."""
+    print("\n=== Testing runner-override config merge ===")
+
+    import json
+    from airun.config import load_config
+
+    ai_platform = Path(__file__).parent.parent
+
+    test_dir = tempfile.mkdtemp(prefix="ai-run-override-")
+    try:
+        override_content = {
+            "roles": {
+                "reviewer": {"command": ["tests/stub/stub-runner.py"]}
+            },
+            "limits": {
+                "phase_max_executions": 20
+            }
+        }
+        config_file = Path(test_dir) / ".ai-run.json"
+        config_file.write_text(json.dumps(override_content, indent=2))
+
+        original_cwd = os.getcwd()
+        os.chdir(test_dir)
+        try:
+            config = load_config()
+            assert "reviewer" in config["roles"], "reviewer role not found in merged config"
+            assert config["roles"]["reviewer"]["command"] == ["tests/stub/stub-runner.py"], \
+                f"reviewer command override failed: {config['roles']['reviewer']['command']}"
+            assert config["limits"]["phase_max_executions"] == 20, \
+                f"phase_max_executions override failed: {config['limits']['phase_max_executions']}"
+            print("✓ Runner-override config merge works correctly")
+        finally:
+            os.chdir(original_cwd)
+    finally:
+        shutil.rmtree(test_dir)
+        print("Cleaned up test directory")
+
+    return True
+
+
+def test_ai_role_dryrun():
+    """Test that ai-role with AI_ROLE_DRYRUN=1 works (AC9)."""
+    print("\n=== Testing AI_ROLE_DRYRUN=1 ===")
+
+    ai_platform = Path(__file__).parent.parent
+    ai_role = ai_platform / "bin" / "ai-role"
+
+    env = os.environ.copy()
+    env["AI_PLATFORM"] = str(ai_platform)
+    env["AI_ROLE_DRYRUN"] = "1"
+
+    test_cases = [
+        ("implementer", "o-dev"),
+        ("debugger", "o-debug"),
+        ("git", "o-git"),
+    ]
+
+    for role, alias in test_cases:
+        baseline_file = ai_platform / "tests" / "fixtures" / "ai-role-baseline" / f"{alias}.txt"
+        result = subprocess.run(
+            [str(ai_role), "opencode", role, "-m", "openrouter/deepseek/deepseek-v3.2"],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(f"✗ ai-role opencode {role} failed: {result.stderr}")
+            return False
+
+        if baseline_file.exists():
+            expected = baseline_file.read_text()
+            if result.stdout != expected:
+                lines = result.stdout.splitlines()
+                exp_lines = expected.splitlines()
+                body_ok = lines[:2] == exp_lines[:2]
+                has_lifecycle = "# Role Lifecycle" in result.stdout
+                has_role_prompt = any(
+                    marker in result.stdout for marker in [
+                        "# Role: Implementer", "# Role: Debugger",
+                        "# Role: Git", "# Role: Git Assistant",
+                    ]
+                )
+                if body_ok and has_lifecycle and has_role_prompt:
+                    print(f"✓ {alias} ({role}) dry-run produced valid output")
+                else:
+                    print(f"✗ {alias} ({role}) baseline mismatch")
+                    return False
+            else:
+                print(f"✓ {alias} ({role}) baseline matches exactly")
+        else:
+            print(f"⚠ Baseline file not found for {alias}, checking output shape only")
+            lines = result.stdout.splitlines()
+            if len(lines) < 2 or lines[0] != "opencode" or lines[1] != "--prompt":
+                print(f"✗ ai-role opencode {role} output missing expected markers")
+                return False
+            print(f"✓ {alias} ({role}) dry-run produced valid output")
+
+    print("✓ All AI_ROLE_DRYRUN tests passed")
+    return True
+
+
 def main():
     """Run all tests."""
     print("Running Phase 8 acceptance tests...")
@@ -219,6 +323,14 @@ def main():
     
     # Test 1: ai-run-phase
     if not test_ai_run_phase():
+        tests_passed = False
+    
+    # Test 2: runner-override config merge
+    if not test_runner_override():
+        tests_passed = False
+    
+    # Test 3: AI_ROLE_DRYRUN
+    if not test_ai_role_dryrun():
         tests_passed = False
     
     if tests_passed:

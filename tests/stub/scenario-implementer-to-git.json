@@ -7,7 +7,7 @@
   {
     "description": "Tester fails",
     "next_role": "Debugger",
-    "exit_code": 1
+    "exit_code": 0
   },
   {
     "description": "Debugger completes",

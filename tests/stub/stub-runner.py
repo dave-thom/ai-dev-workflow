@@ -11,20 +11,38 @@ import sys
 import time
 from pathlib import Path
 
+STEP_FILE = ".stub-step"
+
+
+def _read_step():
+    if os.path.exists(STEP_FILE):
+        try:
+            with open(STEP_FILE, "r") as f:
+                return int(f.read().strip())
+        except (ValueError, IOError):
+            pass
+    try:
+        return int(os.environ.get("STUB_STEP", "0"))
+    except ValueError:
+        return 0
+
+
+def _write_next_step(step):
+    try:
+        with open(STEP_FILE, "w") as f:
+            f.write(str(step + 1))
+    except IOError:
+        pass
+
 
 def main():
     """Main entry point for stub runner."""
-    # Read scenario from environment variable
     scenario_file = os.environ.get("STUB_SCENARIO")
     if not scenario_file:
         print("STUB_SCENARIO environment variable not set", file=sys.stderr)
         sys.exit(1)
-    
-    # Read step from environment variable
-    try:
-        step = int(os.environ.get("STUB_STEP", "0"))
-    except ValueError:
-        step = 0
+
+    step = _read_step()
     
     # Load scenario
     try:
@@ -93,7 +111,9 @@ def main():
     for key, value in current_step.items():
         if value:
             print(f"  {key}: {value}", file=sys.stderr)
-    
+
+    _write_next_step(step)
+
     # Exit with configured code
     exit_code = current_step.get("exit_code", 0)
     sys.exit(exit_code)
