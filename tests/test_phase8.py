@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def setup_test_directory():
     """Create a temporary directory for testing."""
@@ -116,9 +118,11 @@ Reason: None
     # Create .gitignore with required entries
     gitignore_content = """.ai-run-state.json
 .ai-run.log
+.ai-run.json
 """
+    (Path(test_dir) / ".gitignore").write_text(gitignore_content)
     # Create a git repository
-    subprocess.run(["git", "init"], cwd=test_dir, capture_output=True)
+    subprocess.run(["git", "init", "-b", "main"], cwd=test_dir, capture_output=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=test_dir, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=test_dir, capture_output=True)
     subprocess.run(["git", "add", "."], cwd=test_dir, capture_output=True)

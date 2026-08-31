@@ -7,6 +7,7 @@ updating project-state.md accordingly.
 
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -114,9 +115,29 @@ def main():
 
     _write_next_step(step)
 
+    _git_commit_and_push(step)
+
     # Exit with configured code
     exit_code = current_step.get("exit_code", 0)
     sys.exit(exit_code)
+
+
+def _git_commit_and_push(step):
+    try:
+        subprocess.run(
+            ["git", "add", "project-state.md", STEP_FILE],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", f"stub: step {step}"],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "push"],
+            capture_output=True,
+        )
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

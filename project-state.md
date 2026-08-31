@@ -24,11 +24,11 @@ Status: In Progress
 
 Active Phase: Phase 8
 
-Current Role: Tester
+Current Role: Debugger
 
-Next Role: Debugger
+Next Role: Tester
 
-Next Action: Fix defects in docs/qa/phase-8-qa-report-2.md
+Next Action: Re-test fixes from docs/debug/phase-8-debug-report-2.md
 
 ---
 
@@ -42,7 +42,7 @@ Branch: main
 
 Implementation: READY_FOR_QA
 
-QA: FAIL
+QA: READY_FOR_RE_TEST
 
 Review: NOT_STARTED
 
@@ -56,7 +56,7 @@ UI Specification: None
 
 QA Report: docs/qa/phase-8-qa-report-2.md
 
-Debug Report: docs/debug/phase-8-debug-report.md
+Debug Report: docs/debug/phase-8-debug-report-2.md
 
 Review Report: None
 
