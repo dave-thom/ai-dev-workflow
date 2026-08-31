@@ -28,7 +28,7 @@ Current Role: Implementer
 
 Next Role: Tester
 
-Next Action: Implement Phase 8 (Loop Commands, Test Harness and Documentation) per myplan.md
+Next Action: Test Phase 8 implementation
 
 ---
 
@@ -43,8 +43,6 @@ Branch: main
 Implementation: READY_FOR_QA
 
 QA: NOT_STARTED
-
-Review: NOT_STARTED
 
 ---
 
