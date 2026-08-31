@@ -24,23 +24,23 @@ Status: In Progress
 
 Active Phase: Phase 8c
 
-Current Role: Git Assistant
+Current Role: Implementer
 
-Next Role: Implementer
+Next Role: Tester
 
-Next Action: Implement Phase 8c — Stop Condition Scenarios (three new stub scenarios and test functions in tests/test_phase8c.py)
+Next Action: Run Phase 8c acceptance tests — verify stop condition scenarios (Architect, Human Intervention, Runner Failure) per myplan.md acceptance criteria 1–4
 
 ---
 
 ## Git
 
-Branch: main
+Branch: feature/phase-8c
 
 ---
 
 ## Execution
 
-Implementation: NOT_STARTED
+Implementation: COMPLETED
 
 QA: NOT_STARTED
 
