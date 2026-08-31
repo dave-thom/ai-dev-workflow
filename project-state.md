@@ -24,11 +24,11 @@ Status: In Progress
 
 Active Phase: Phase 8b
 
-Current Role: Debugger
+Current Role: Reviewer
 
-Next Role: Tester
+Next Role: Git Assistant
 
-Next Action: Re-test AC2 — ai-run cross-phase exits 0; all Phase 8b ACs pass (tests/test_phase8b.py)
+Next Action: Commit and integrate Phase 8b (Loop Continuation and Circuit Breaker Scenarios) per docs/reviews/phase-8b-review-report.md, then advance to Phase 8c
 
 ---
 
@@ -42,9 +42,9 @@ Branch: main
 
 Implementation: COMPLETED
 
-QA: RE_TEST
+QA: PASSED
 
-Review: NOT_STARTED
+Review: APPROVED
 
 ---
 
@@ -58,7 +58,7 @@ QA Report: docs/qa/phase-8b-qa-report.md
 
 Debug Report: docs/debug/phase-8b-debug-report.md
 
-Review Report: None
+Review Report: docs/reviews/phase-8b-review-report.md
 
 ---
 
