@@ -11,7 +11,7 @@ from airun.runtime import RuntimeState
 from airun.routing import resolve, Decision
 from airun.errors import InvalidStateError, StopRequired
 from airun.logbook import log_event
-from airun.guards import check_ignore_guard
+from airun.guards import check_ignore_guard, check_git_handoff_guard
 
 
 def parse_args() -> argparse.Namespace:
@@ -129,6 +129,14 @@ def next_command(args: argparse.Namespace) -> int:
             if ignore_result:
                 print(f"Ignore guard violation: {ignore_result}")
                 return 4
+        
+        # Check git handoff guard for Tester role (Phase 6, dry-run only)
+        if args.dry_run and decision.action == "launch" and decision.logical_role.lower() == "tester":
+            handoff_result = check_git_handoff_guard(cwd, project_state.branch)
+            if handoff_result:
+                # This should stop with exit code 2 (role-contract violation)
+                print(f"Git handoff guard violation: {handoff_result}")
+                return 2
         
         # For dry-run, just print information
         if args.dry_run:
