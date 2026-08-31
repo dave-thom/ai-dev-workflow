@@ -59,6 +59,72 @@ src/
 
 ---
 
+# AI-Run Orchestrator
+
+The `ai-run` orchestrator automates workflow execution based on `project-state.md`.
+
+## Commands
+
+* `ai-next` - Resolve next role and optionally execute it
+* `ai-run-phase` - Repeat `ai-next` until the active phase changes
+* `ai-run` - Repeat `ai-next` unconditionally across phases
+
+## Configuration
+
+Configuration is stored in `config/ai-run.json`:
+
+```json
+{
+  "kickoff_prompt": "Begin the workflow defined by project-state.md.",
+  "roles": {
+    "implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v3.2"] },
+    "senior_implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
+    "debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v3.2"] },
+    "senior_debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
+    "git": { "command": ["ai-role", "opencode", "git", "-m", "openrouter/deepseek/deepseek-v4-flash"] },
+    "tester": { "command": ["ai-role", "claude", "tester", "--model", "sonnet", "--permission-mode", "auto"] },
+    "reviewer": { "command": ["ai-role", "claude", "reviewer", "--model", "sonnet", "--permission-mode", "auto"] },
+    "designer": { "command": ["ai-role", "claude", "designer", "--model", "sonnet", "--permission-mode", "auto"] }
+  },
+  "limits": {
+    "senior_debugger_max": 3,
+    "designer_max": 2,
+    "phase_max_executions": 15
+  }
+}
+```
+
+## Runtime Files
+
+* `.ai-run-state.json` - Tracks execution counters per phase
+* `.ai-run.log` - Logs orchestration events
+
+Both files must be git-ignored.
+
+## Exit Codes
+
+* `0` - Transition completed, or loop finished normally
+* `2` - Stopped, human action required (escalation, limits, Architect, no progress)
+* `3` - Runtime failure (non-zero child exit)
+* `4` - Invalid or unparseable workflow state / configuration
+
+## Runner Override
+
+Create `.ai-run.json` in your project directory to override runners:
+
+```json
+{
+  "roles": {
+    "reviewer": { "command": ["custom-reviewer-script"] }
+  },
+  "limits": {
+    "phase_max_executions": 20 
+  }
+}
+```
+
+---
+
 # Workflow
 
 The standard development workflow is:

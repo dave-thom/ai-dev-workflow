@@ -1,0 +1,10 @@
+{
+  "roles": {
+    "reviewer": {
+      "command": ["tests/stub/stub-runner.py"]
+    }
+  },
+  "limits": {
+    "phase_max_executions": 20
+  }
+}

@@ -1,0 +1,33 @@
+[
+  {
+    "description": "Implementer completes successfully",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester fails",
+    "next_role": "Debugger",
+    "exit_code": 1
+  },
+  {
+    "description": "Debugger completes",
+    "next_role": "Tester",
+    "exit_code": 0
+  },
+  {
+    "description": "Tester passes",
+    "next_role": "Reviewer",
+    "exit_code": 0
+  },
+  {
+    "description": "Reviewer completes",
+    "next_role": "Git Assistant",
+    "exit_code": 0
+  },
+  {
+    "description": "Git Assistant advances phase",
+    "next_role": "Implementer",
+    "active_phase": "Phase 9",
+    "exit_code": 0
+  }
+]

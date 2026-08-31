@@ -34,6 +34,18 @@ def parse_args() -> argparse.Namespace:
         help="Print decision without executing",
     )
     
+    # ai-run-phase command
+    run_phase_parser = subparsers.add_parser(
+        "run-phase",
+        help="Repeat 'next' until the active phase changes",
+    )
+    
+    # ai-run command
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Repeat 'next' unconditionally across phases",
+    )
+    
     return parser.parse_args()
 
 
@@ -251,12 +263,116 @@ def next_command(args: argparse.Namespace) -> int:
         return 1
 
 
+def run_phase_command(args: argparse.Namespace) -> int:
+    """Execute the 'run-phase' subcommand."""
+    cwd = os.getcwd()
+    state_path = os.path.join(cwd, "project-state.md")
+    
+    try:
+        # Read initial active phase
+        project_state = read_project_state(state_path)
+        initial_phase = project_state.active_phase
+        
+        print(f"Starting phase loop for: {initial_phase}", file=sys.stderr)
+        
+        loop_count = 0
+        while True:
+            # Create argparse namespace for 'next' command
+            class NextArgs:
+                dry_run = False
+            
+            next_args = NextArgs()
+            
+            # Execute 'next' command
+            exit_code = next_command(next_args)
+            
+            # If next_command returned non-zero, propagate it
+            if exit_code != 0:
+                return exit_code
+            
+            # Reload project state to check phase change
+            project_state = read_project_state(state_path)
+            current_phase = project_state.active_phase
+            
+            # Check if phase has changed
+            if current_phase != initial_phase:
+                print(f"Phase changed: {initial_phase} -> {current_phase}", file=sys.stderr)
+                return 0
+            
+            # Check if workflow has completed (Next Role is Architect or None/empty)
+            next_role_lower = project_state.next_role.lower().strip()
+            if next_role_lower == "architect" or not next_role_lower:
+                print(f"Workflow completed in phase: {current_phase}", file=sys.stderr)
+                return 0
+            
+            # Safety limit to prevent infinite loops
+            loop_count += 1
+            if loop_count > 1000:  # Extreme safety limit
+                print("Safety limit reached: loop_count > 1000", file=sys.stderr)
+                return 2
+    
+    except InvalidStateError as e:
+        print(f"Invalid state: {e}", file=sys.stderr)
+        return 4
+    except StopRequired as e:
+        print(f"Stop required: {e}", file=sys.stderr)
+        return 2
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        return 1
+
+
+def run_command(args: argparse.Namespace) -> int:
+    """Execute the 'run' subcommand."""
+    cwd = os.getcwd()
+    state_path = os.path.join(cwd, "project-state.md")
+    
+    try:
+        print("Starting unconditional run loop across phases", file=sys.stderr)
+        
+        loop_count = 0
+        while loop_count < 1000:  # Extreme safety limit
+            # Create argparse namespace for 'next' command
+            class NextArgs:
+                dry_run = False
+            
+            next_args = NextArgs()
+            
+            # Execute 'next' command
+            exit_code = next_command(next_args)
+            
+            # If next_command returned non-zero, propagate it
+            if exit_code != 0:
+                return exit_code
+            
+            loop_count += 1
+        
+        print("Safety limit reached: loop_count >= 1000", file=sys.stderr)
+        return 2
+    
+    except InvalidStateError as e:
+        print(f"Invalid state: {e}", file=sys.stderr)
+        return 4
+    except StopRequired as e:
+        print(f"Stop required: {e}", file=sys.stderr)
+        return 2
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     """Main entry point."""
     args = parse_args()
     
     if args.command == "next":
         exit_code = next_command(args)
+        sys.exit(exit_code)
+    elif args.command == "run-phase":
+        exit_code = run_phase_command(args)
+        sys.exit(exit_code)
+    elif args.command == "run":
+        exit_code = run_command(args)
         sys.exit(exit_code)
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
