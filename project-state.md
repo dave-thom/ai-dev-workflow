@@ -24,11 +24,11 @@ Status: In Progress
 
 Active Phase: Phase 8
 
-Current Role: Debugger
+Current Role: Tester
 
-Next Role: Tester
+Next Role: Debugger
 
-Next Action: Re-test Phase 8 fixes per docs/debug/phase-8-debug-report.md
+Next Action: Fix defects in docs/qa/phase-8-qa-report-2.md
 
 ---
 
@@ -54,7 +54,7 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: docs/qa/phase-8-qa-report.md
+QA Report: docs/qa/phase-8-qa-report-2.md
 
 Debug Report: docs/debug/phase-8-debug-report.md
 
