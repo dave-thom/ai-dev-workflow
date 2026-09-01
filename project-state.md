@@ -24,11 +24,11 @@ Status: In Progress
 
 Active Phase: Phase 8c
 
-Current Role: Implementer
+Current Role: Reviewer
 
-Next Role: Tester
+Next Role: Git Assistant
 
-Next Action: Run Phase 8c acceptance tests — verify stop condition scenarios (Architect, Human Intervention, Runner Failure) per myplan.md acceptance criteria 1–4
+Next Action: Merge feature/phase-8c to main and finalize the Phase 8c handoff per docs/reviews/phase-8c-review-report.md (APPROVE).
 
 ---
 
@@ -42,9 +42,9 @@ Branch: feature/phase-8c
 
 Implementation: COMPLETED
 
-QA: NOT_STARTED
+QA: PASSED
 
-Review: NOT_STARTED
+Review: APPROVED
 
 ---
 
@@ -54,11 +54,11 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: None
+QA Report: docs/qa/phase-8c-qa-report.md
 
-Debug Report: None
+Debug Report: docs/debug/phase-8c-debug-report.md
 
-Review Report: None
+Review Report: docs/reviews/phase-8c-review-report.md
 
 ---
 
