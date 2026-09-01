@@ -301,7 +301,7 @@ def run_phase_command(args: argparse.Namespace) -> int:
             
             # Check if workflow has completed (Next Role is Architect or None/empty)
             next_role_lower = project_state.next_role.lower().strip()
-            if next_role_lower == "architect" or not next_role_lower:
+            if not next_role_lower:
                 print(f"Workflow completed in phase: {current_phase}", file=sys.stderr)
                 return 0
             
@@ -348,7 +348,7 @@ def run_command(args: argparse.Namespace) -> int:
             # Reload project state to check for idle completion
             project_state = read_project_state(state_path)
             next_role_lower = project_state.next_role.lower().strip()
-            if next_role_lower in ("architect", "", "none"):
+            if next_role_lower in ("", "none"):
                 print(f"Workflow completed", file=sys.stderr)
                 return 0
             

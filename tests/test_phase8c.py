@@ -204,7 +204,11 @@ def test_architect_stop():
             if result.stderr:
                 print(result.stderr)
 
-            assert result.returncode == 0, f"[{command}] Expected 0, got {result.returncode}"
+            assert result.returncode == 2, f"[{command}] Expected 2, got {result.returncode}"
+
+            output = result.stdout + result.stderr
+            assert "\u00a7" + "12" in output, \
+                f"[{command}] Expected section-12 rule, got: {output[:200]}"
 
             state = _read_state(test_dir)
             assert state["counters"]["implementer"] == 1, \
