@@ -1,0 +1,8 @@
+[
+  {
+    "description": "Implementer escalates with human intervention",
+    "human_intervention": "Yes",
+    "reason": "Test escalation requires human decision",
+    "exit_code": 0
+  }
+]
