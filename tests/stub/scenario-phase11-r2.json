@@ -1,0 +1,8 @@
+[
+  {
+    "description": "Hand to Reviewer with QA=FAIL (R2 violation)",
+    "next_role": "Reviewer",
+    "qa": "FAIL",
+    "exit_code": 0
+  }
+]

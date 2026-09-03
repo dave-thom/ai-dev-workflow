@@ -1,0 +1,8 @@
+[
+  {
+    "description": "Implementer changes Active Phase with R4 disabled",
+    "next_role": "Tester",
+    "active_phase": "Phase 12",
+    "exit_code": 0
+  }
+]

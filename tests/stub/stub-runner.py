@@ -99,6 +99,21 @@ def main():
             if new_reason:
                 lines[i] = f"Reason: {new_reason}"
                 updated = True
+        elif line.startswith("Implementation:"):
+            new_val = current_step.get("implementation")
+            if new_val:
+                lines[i] = f"Implementation: {new_val}"
+                updated = True
+        elif line.startswith("QA:"):
+            new_val = current_step.get("qa")
+            if new_val:
+                lines[i] = f"QA: {new_val}"
+                updated = True
+        elif line.startswith("Review:"):
+            new_val = current_step.get("review")
+            if new_val:
+                lines[i] = f"Review: {new_val}"
+                updated = True
     
     # Write updated state
     try:

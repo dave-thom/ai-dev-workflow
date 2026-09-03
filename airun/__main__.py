@@ -13,6 +13,10 @@ from airun.errors import InvalidStateError, StopRequired
 from airun.logbook import log_event
 from airun.guards import check_ignore_guard, check_git_handoff_guard
 from airun.launcher import launch_runner, check_progress, check_phase_advance_guardrail
+from airun.invariants import check_invariants
+
+# Module-level variable to store last execution info
+_last_execution_info = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,7 +105,7 @@ def _print_dry_run_info(
         print(f"Review Report: {raw['Review Report']}")
 
 
-def next_command(args: argparse.Namespace) -> int:
+def next_command(args: argparse.Namespace, return_execution_info: bool = False, pinned_phase: Optional[str] = None) -> int:
     """Execute the 'next' subcommand."""
     # Determine paths
     cwd = os.getcwd()
@@ -118,7 +122,7 @@ def next_command(args: argparse.Namespace) -> int:
         
         # Load runtime state
         runtime = RuntimeState(runtime_path)
-        runtime_data = runtime.load(project_state.active_phase)
+        runtime_data = runtime.load(project_state.active_phase, pinned_phase)
         counters = runtime.get_counters()
         total_runs = runtime.get_total_runs()
         
@@ -221,7 +225,27 @@ def next_command(args: argparse.Namespace) -> int:
             decision.runner,
             f"exit={process.returncode} next={new_project_state.next_role}",
         )
-        
+
+        # Check invariant contradictions (§22)
+        try:
+            check_invariants(
+                project_state,
+                new_project_state,
+                decision.logical_role,
+                config["limits"],
+            )
+        except StopRequired as e:
+            log_event(
+                log_path,
+                f"Phase {project_state.active_phase}",
+                "stop",
+                decision.logical_role,
+                decision.runner,
+                f"{e.reason} ({e.rule})",
+            )
+            print(f"Stop: {e.reason} ({e.rule})", file=sys.stderr)
+            return 2
+
         # Check phase-advance guardrail
         guardrail_error = check_phase_advance_guardrail(
             project_state,
@@ -246,7 +270,17 @@ def next_command(args: argparse.Namespace) -> int:
             )
             return 2
         
-        # Success
+        # Success - if return_execution_info is True, we need to communicate
+        # what role executed. For now, we'll use a global variable approach.
+        if return_execution_info:
+            # Store execution info in a module-level variable
+            import airun.__main__ as this_module
+            this_module._last_execution_info = {
+                "logical_role": decision.logical_role,
+                "runner": decision.runner,
+                "exit_code": process.returncode
+            }
+        
         return 0
         
     except InvalidStateError as e:
@@ -273,6 +307,8 @@ def run_phase_command(args: argparse.Namespace) -> int:
         print(f"Starting phase loop for: {initial_phase}", file=sys.stderr)
         
         loop_count = 0
+        pinned_phase = initial_phase
+        
         while True:
             # Create argparse namespace for 'next' command
             class NextArgs:
@@ -280,26 +316,35 @@ def run_phase_command(args: argparse.Namespace) -> int:
             
             next_args = NextArgs()
             
-            # Execute 'next' command
-            exit_code = next_command(next_args)
+            # Clear previous execution info
+            import airun.__main__ as this_module
+            this_module._last_execution_info = None
+            
+            # Execute 'next' command with execution info and pinned phase
+            exit_code = next_command(next_args, return_execution_info=True, pinned_phase=pinned_phase)
             
             # If next_command returned non-zero, propagate it
             if exit_code != 0:
                 return exit_code
             
-            # Reload project state to check phase change
+            # Check if Git Assistant completed successfully
+            if this_module._last_execution_info:
+                logical_role = this_module._last_execution_info["logical_role"].lower()
+                exit_code = this_module._last_execution_info["exit_code"]
+                
+                # Git Assistant roles include "git assistant" and "git"
+                git_roles = ["git assistant", "git"]
+                if logical_role in git_roles and exit_code == 0:
+                    print(f"Git Assistant completed successfully, ending phase loop", file=sys.stderr)
+                    return 0
+            
+            # Reload project state to check for workflow completion
             project_state = read_project_state(state_path)
-            current_phase = project_state.active_phase
             
-            # Check if phase has changed
-            if current_phase != initial_phase:
-                print(f"Phase changed: {initial_phase} -> {current_phase}", file=sys.stderr)
-                return 0
-            
-            # Check if workflow has completed (Next Role is Architect or None/empty)
+            # Check if workflow has completed (Next Role is None/empty)
             next_role_lower = project_state.next_role.lower().strip()
-            if not next_role_lower:
-                print(f"Workflow completed in phase: {current_phase}", file=sys.stderr)
+            if next_role_lower in ("", "none"):
+                print(f"Workflow completed in phase: {initial_phase}", file=sys.stderr)
                 return 0
             
             # Safety limit to prevent infinite loops
@@ -328,6 +373,9 @@ def run_command(args: argparse.Namespace) -> int:
         print("Starting unconditional run loop across phases", file=sys.stderr)
         
         loop_count = 0
+        # Start with no pinned phase - will be set on first iteration
+        pinned_phase = None
+        
         while loop_count < 1000:  # Extreme safety limit
             # Create argparse namespace for 'next' command
             class NextArgs:
@@ -335,12 +383,34 @@ def run_command(args: argparse.Namespace) -> int:
             
             next_args = NextArgs()
             
-            # Execute 'next' command
-            exit_code = next_command(next_args)
+            # Clear previous execution info
+            import airun.__main__ as this_module
+            this_module._last_execution_info = None
+            
+            # If we don't have a pinned phase yet, read it from the current state
+            if pinned_phase is None:
+                project_state = read_project_state(state_path)
+                pinned_phase = project_state.active_phase
+            
+            # Execute 'next' command with execution info and pinned phase
+            exit_code = next_command(next_args, return_execution_info=True, pinned_phase=pinned_phase)
             
             # If next_command returned non-zero, propagate it
             if exit_code != 0:
                 return exit_code
+            
+            # Check if Git Assistant completed successfully
+            if this_module._last_execution_info:
+                logical_role = this_module._last_execution_info["logical_role"].lower()
+                exit_code = this_module._last_execution_info["exit_code"]
+                
+                # Git Assistant roles include "git assistant" and "git"
+                git_roles = ["git assistant", "git"]
+                if logical_role in git_roles and exit_code == 0:
+                    print(f"Git Assistant completed successfully, advancing to next phase", file=sys.stderr)
+                    # Reset pinned phase to None so it will be read from the new state on next iteration
+                    pinned_phase = None
+                    # Counters will reset via runtime phase reconciliation
             
             # Reload project state to check for idle completion
             project_state = read_project_state(state_path)

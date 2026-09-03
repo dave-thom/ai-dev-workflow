@@ -7,6 +7,7 @@
   {
     "description": "Phase 8B Tester completes",
     "next_role": "Git Assistant",
+    "review": "APPROVED",
     "exit_code": 0
   },
   {
@@ -23,6 +24,7 @@
   {
     "description": "Phase 9 Tester completes",
     "next_role": "Reviewer",
+    "qa": "PASS",
     "exit_code": 0
   },
   {

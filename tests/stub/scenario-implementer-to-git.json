@@ -17,11 +17,13 @@
   {
     "description": "Tester passes",
     "next_role": "Reviewer",
+    "qa": "PASS",
     "exit_code": 0
   },
   {
     "description": "Reviewer completes",
     "next_role": "Git Assistant",
+    "review": "APPROVED",
     "exit_code": 0
   },
   {

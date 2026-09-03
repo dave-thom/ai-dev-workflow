@@ -1,0 +1,9 @@
+[
+  {
+    "description": "Implementer hands onward untested (R1 violation)",
+    "next_role": "Implementer",
+    "implementation": "COMPLETED",
+    "qa": "NOT_STARTED",
+    "exit_code": 0
+  }
+]

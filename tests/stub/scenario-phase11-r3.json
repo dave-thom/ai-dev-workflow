@@ -1,0 +1,8 @@
+[
+  {
+    "description": "Hand to Git Assistant without review approval (R3 violation)",
+    "next_role": "Git Assistant",
+    "review": "NOT_STARTED",
+    "exit_code": 0
+  }
+]
