@@ -1,6 +1,6 @@
 # Implementation Plan — `ai-run` Workflow Orchestrator
 
-Version: 1.1
+Version: 1.3
 
 Source specification: `specification/auto-run requirements.md`
 
@@ -543,6 +543,14 @@ within it, stop and escalate rather than extending the schema.
 
 **Deferred:** the three hard-stop scenarios — Phase 8c.
 
+**Amended 2026-09-03.** Criteria 1 and 2 are worded in terms of `Active Phase`
+changing. Under the §19 amendment the trigger is successful Git Assistant
+execution. Observable outcomes are unchanged: in both
+`scenario-phase-boundary.json` and `scenario-cross-phase.json` the phase change is
+performed by the Git Assistant step, so termination point, `total_runs` and
+counter-reset behaviour are identical under either reading. The scenarios and
+tests require no modification.
+
 ## Phase 8c — Stop Condition Scenarios
 
 **Objective:** prove that both loop commands halt on Architect handoff, human
@@ -578,8 +586,8 @@ new `tests/test_phase8c.py`. Same constraints as Phase 8b: no change to `airun/`
 | 10. Non-advancing role stops | Phase 7 AC 5 |
 | 11. Uncommitted/unpushed Tester handoff rejected | Phase 6 AC 1–5 |
 | 12. `ai-run-phase` completes a phase | Phase 8a AC 1, Phase 8b AC 1 |
-| 13. `ai-run` continues into next phase | Phase 8b AC 2 |
-| 14. Counters reset on phase change | Phase 3 AC 6, Phase 8b AC 2 |
+| 13. `ai-run` continues into next phase | Phase 8b AC 2, Phase 10 AC 4 |
+| 14. Counters reset on Git Assistant phase completion (amended) | Phase 10 AC 4 |
 | 15. Phase circuit breaker | Phase 4 AC 12, Phase 8b AC 4 |
 | 16. Runtime failures stop, no retry | Phase 7 AC 6, Phase 8c AC 3 |
 | 17. Manual invocation unaffected | Phase 1 AC 3–4, Phase 8a AC 2 |
@@ -605,3 +613,204 @@ new `tests/test_phase8c.py`. Same constraints as Phase 8b: no change to `airun/`
 Everything listed in specification §32, plus: per-role timeouts, retry of failed
 runtimes, parsing of agent output for intent, and any automatic repair of
 `project-state.md`.
+
+---
+
+# 8. Plan Completion Review
+
+Reviewed after Phase 8c integration.
+
+## Status
+
+All eight implementation phases (1, 2, 3, 4, 5, 6, 7, 8a, 8b, 8c) are delivered,
+QA-passed and review-approved. Every criterion in specification §33 is mapped to a
+delivered phase in section 5 above, and no criterion is unmapped or partially
+covered.
+
+Verification: the four root-level acceptance suites (`test_phase2_ac.py` through
+`test_phase6_ac.py`) and the six suites under `tests/` all pass on `/usr/bin/python3`.
+The three module-level suites (`test_state.py`, `test_routing.py`, `test_phase3.py`)
+import `airun` directly and therefore require the repository root on `PYTHONPATH`;
+the stub-harness suites do not.
+
+**Superseded — see section 9.** Investigation on 2026-09-03 found two approved
+specification requirements that were never implemented. Section 9 defines the
+phases that close them.
+
+## Remaining Candidates
+
+The only outstanding work is the deferred set: specification §32, plus the four
+additional exclusions recorded in section 7 (per-role timeouts, runtime retry,
+agent-output parsing, automatic `project-state.md` repair).
+
+Specification §32 states these "may be considered later only if an observed need
+emerges". Whether such a need has emerged is a scope decision reserved to the user.
+The Architect cannot select from this list without expanding approved project scope.
+
+Of the deferred items, the three that section 6 already identifies as bounded and
+architecturally contained, should the user wish to extend scope, are:
+
+1. **Per-role timeout** — a `timeout` key under `limits` in `.ai-run.json`, enforced
+   in `launcher.py`. Closes the hung-runtime risk recorded in section 6.
+2. **Notifications** — a terminal/OS notification on stop, isolated to `logbook.py`.
+   Relevant only if the user runs loops unattended.
+3. **Dynamic model selection** — already partly expressible through the existing
+   per-role command configuration (§24); would require no new architecture.
+
+The remaining §32 items (GUI, web dashboard, daemon, cloud orchestration, AI-based
+workflow decisions, automatic Architect execution, workflow DSL, parallel execution,
+multi-project orchestration, automatic malformed-state recovery) each contradict a
+design principle in specification §2 or a stop rule in §12/§13, and would require a
+specification change before any plan could be produced.
+
+---
+
+# 9. Phases 9–11 — Invocation Parity and State Integrity
+
+Added 2026-09-03 following investigation of the first live `ai-run-phase`
+execution in the `school-events` project.
+
+## Findings
+
+The loop terminated after one Implementer execution. The Implementer had changed
+`Active Phase` from `15.1` to `15.2`; `ai-run-phase` treats any change to that
+field as phase completion and exited 0.
+
+Evidence gathered from both projects:
+
+1. **`Active Phase` is not a reliable control signal.** Three of eight Implementer
+   state updates in this repository changed it (`e765c9f`, `0968bdd`, `d186f56`),
+   manually, with no orchestrator involved. In `school-events` the UI Designer
+   changed it as well.
+2. **The behaviour is not automation-specific.** `0968bdd` — manual — advanced
+   `Active Phase` from Phase 7 to Phase 8, set `Next Role: Implementer`, and left
+   `QA: NOT_STARTED`. Phase 7 has no QA report and no review report; it was never
+   tested or reviewed. The automated case was milder: it advanced one phase and
+   handed to Tester.
+3. **Manual routing hides the defect.** A human routes on `Next Role`, so a wrong
+   `Active Phase` has no observable effect. The orchestrator routes on
+   `Active Phase`, so the same edit becomes a control-flow event.
+4. **§16 is partially implemented.** The specification lists "the current phase is
+   successfully completed" and "the active phase changes" as separate stop
+   conditions. `run_phase_command` implements only the second.
+5. **§22 is unimplemented.** "Contradictory workflow state" is a required stop
+   condition. Nothing in `airun/` performs any such check.
+6. **Two invocation divergences are unjustified.** `--auto` was added at
+   implementation time, appears nowhere in the specification, and is unnecessary —
+   `opencode run` writes files without it. The kickoff message is appended to
+   OpenCode roles, which never receive one under manual invocation.
+
+Findings 4 and 5 are defects against the approved specification, not scope
+expansion. Section 6's risk table is amended: the entry accepting the OpenCode
+message-body behaviour as "matches existing behaviour" was incorrect — manual
+invocation adds no `--auto`.
+
+## Phase 9 — Invocation Parity and Log Correctness
+
+**Objective:** make automated invocation match manual invocation as closely as
+non-interactive execution permits, and correct the misleading log field.
+
+**Scope:** `bin/ai-role`, `airun/launcher.py`, `airun/__main__.py`,
+`config/ai-run.json`, `tests/fixtures/ai-role-baseline/`, `tests/test_phase8.py`,
+and a new `tests/test_phase9.py`.
+
+Add an optional per-role `kickoff` boolean to the role configuration, defaulting
+to `true`. `launch_runner` appends `kickoff_prompt` only when it is true. OpenCode
+roles set it to `false`, so they receive the composed lifecycle and role prompt as
+the message and nothing else — identical in content to manual invocation. Claude
+roles keep `kickoff: true`, as §25 requires an initial prompt to create an
+execution turn.
+
+Remove `--auto` from both OpenCode batch branches in `ai-role` (execution and
+dry-run).
+
+**Acceptance criteria:**
+
+1. `AI_ROLE_DRYRUN=1 AI_ROLE_BATCH=1` for every OpenCode role emits `opencode run` with no `--auto`, and a message equal to the composed lifecycle plus role prompt with no kickoff text appended.
+2. The message body in criterion 1 is byte-identical to the message in the corresponding manual baseline fixture; only the subcommand and flag positions differ.
+3. `AI_ROLE_DRYRUN=1` without `AI_ROLE_BATCH` still reproduces every committed baseline in `tests/fixtures/ai-role-baseline/` byte-for-byte, for all eleven aliases.
+4. Claude roles under batch still emit `claude -p --append-system-prompt … "<kickoff>"`, unchanged.
+5. The `done` log line reports the `Next Role` read *after* execution. Currently `airun/__main__.py:213` logs the pre-execution value, so every `done` line names the role that just ran.
+6. The baseline check in `tests/test_phase8.py` fails on any byte difference. Its present fallback accepts a match on the first two lines plus marker presence, and would not detect prompt drift.
+
+**Deferred:** all loop-termination and validation behaviour — Phases 10 and 11.
+
+## Phase 10 — Phase Completion Signal
+
+**Approved 2026-09-03.** The specification amendment described below has been
+accepted by the user and applied to §16, §19 and §33 criterion 14.
+
+**Objective:** terminate `ai-run-phase` on genuine phase completion rather than on
+any change to `Active Phase`.
+
+**Scope:** `airun/__main__.py` (`run_phase_command`, `run_command`),
+`airun/runtime.py`, new scenarios under `tests/stub/`, new `tests/test_phase10.py`.
+
+The loop pins the phase identity it started with. That pinned value, not the file,
+keys the per-phase counters and the circuit breaker. Mid-phase edits to
+`Active Phase` no longer terminate the loop or reset counters. The loop ends when
+the Git Assistant completes successfully, which is the §16 condition "the current
+phase is successfully completed". Under `ai-run`, Git Assistant completion is also
+the point at which the pinned phase advances and counters reset.
+
+This rests on the user's confirmation that the Git Assistant closes every phase,
+and that a phase ending without it indicates a problem requiring intervention —
+which is itself a stop.
+
+**Acceptance criteria:**
+
+1. A scenario in which a non-Git role changes `Active Phase` mid-phase runs to Git Assistant completion under `ai-run-phase`, exits 0, and does not terminate at the edit.
+2. Per-role counters and `total_runs` are unaffected by that mid-phase edit; the circuit breaker still counts from the phase start.
+3. `ai-run-phase` exits 0 when the Git Assistant completes, and launches no runner for the next phase.
+4. Under `ai-run`, the pinned phase advances and counters reset at Git Assistant completion; the next phase's first Implementer resolves to `implementer`, not `senior_implementer`.
+5. A phase that reaches the execution limit without Git Assistant completion still stops with exit 2 and rule `§20`.
+6. Existing Phase 8b and 8c scenarios continue to pass unchanged.
+
+**Specification amendment (applied).** §16's "the active phase changes" stop
+condition is removed. §19 now keys phase detection and counter reset to Git
+Assistant completion, and states that mid-phase `Active Phase` edits by other
+roles must not reset counters or terminate a loop. §33 criterion 14 is reworded
+accordingly. Phases 9 and 11 do not depend on this amendment.
+
+## Phase 11 — Contradictory State Validation (§22)
+
+**Objective:** implement the §22 stop condition for contradictory workflow state.
+
+**Scope:** new `airun/invariants.py`, called from `airun/__main__.py` after each
+role execution and before the next resolution; new scenarios under `tests/stub/`;
+new `tests/test_phase11.py`. No change to role prompts.
+
+Four conservative rules, chosen to be unambiguous and to avoid false stops. Each
+stops with exit 2 and rule `§22`, naming the fields in conflict.
+
+* **R1** — `Implementation: COMPLETED` with `QA: NOT_STARTED` and `Next Role` an Implementer tier. Work handed onward untested. Catches `0968bdd`.
+* **R2** — `Next Role: Reviewer` while `QA` is not a pass state.
+* **R3** — `Next Role: Git Assistant` while `Review` is not an approval state.
+* **R4** — `Active Phase` changed by any role other than the Git Assistant. Reported as a contradiction rather than silently absorbed. Configurable via `limits`, default enabled.
+
+Rules are evaluated only on the post-execution state of a role the orchestrator
+itself launched. Manual operation is unaffected (§30).
+
+**Acceptance criteria:**
+
+1. A scenario reproducing `0968bdd` — Implementer sets `Implementation: COMPLETED`, `QA: NOT_STARTED`, `Next Role: Implementer` — stops with exit 2 and rule `§22`, naming R1.
+2. A scenario handing to Reviewer with `QA: FAIL` stops with exit 2 and rule `§22` (R2).
+3. A scenario handing to Git Assistant without review approval stops with exit 2 and rule `§22` (R3).
+4. A scenario in which the Implementer changes `Active Phase` stops with exit 2 and rule `§22` (R4), and does not stop when R4 is disabled in `limits`.
+5. The full normal path of `scenario-implementer-to-git.json` triggers no rule and still exits 0 with `total_runs == 6`.
+6. Phase 8b and 8c scenarios continue to pass unchanged.
+
+**Deferred:** any automatic repair of contradictory state, which §22 forbids and
+§32 excludes. The orchestrator stops and reports; the user decides.
+
+## Not in scope
+
+Role and lifecycle definitions are unchanged by these phases. `role-lifecycle.md`
+and six of the seven role prompts are byte-identical to their pre-project state;
+`prompts/role-git.md` gained a thirteen-line "Phase Advancement" section in Phase 1.
+Assigning explicit field ownership in the role prompts would be a governance
+change affecting manual operation, and is a separate user decision.
+
+The rationale sentence in that added section justifies the instruction in
+orchestrator terms — counter resets and senior-tier routing. Restating it in
+workflow terms is a one-line prompt edit, listed here for visibility only.

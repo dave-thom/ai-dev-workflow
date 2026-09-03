@@ -485,8 +485,7 @@ ai-run-phase
 
 It repeatedly executes the equivalent of `ai-next` until one of the following occurs:
 
-- the current phase is successfully completed
-- the active phase changes
+- the current phase is successfully completed, signalled by successful Git Assistant execution (amended 2026-09-03)
 - human intervention is required
 - Architect is required
 - a guardrail is reached
@@ -565,15 +564,22 @@ The important principle is:
 
 # 19. Phase Detection
 
-When the value of:
+Amended 2026-09-03.
+
+A new phase begins when the Git Assistant completes a phase successfully.
+
+Phase-specific counters must reset at that point.
+
+The orchestrator pins the phase identity it began with. Changes to:
 
 ```text
 Active Phase
 ```
 
-changes, the orchestrator should treat this as a new phase.
-
-Phase-specific counters must reset.
+made mid-phase by any other role must not reset counters or terminate a loop.
+That field is written loosely by several roles in practice and is not a reliable
+control signal. Where such a change occurs it is reported under §22 as
+contradictory workflow state rather than acted upon.
 
 The orchestrator must not infer phase changes from Git history, report filenames or old documentation.
 
@@ -960,7 +966,7 @@ The first implementation is complete when:
 11. Code-changing handoffs to Tester can be rejected when required changes are not committed/pushed.
 12. `ai-run-phase` can complete one normal phase automatically.
 13. `ai-run` can continue from one completed phase into the next.
-14. Phase counters reset when `Active Phase` changes.
+14. Phase counters reset when the Git Assistant completes a phase (amended 2026-09-03; previously keyed to `Active Phase` changing).
 15. The 12-role phase circuit breaker prevents unbounded execution.
 16. Runtime failures stop automation rather than triggering uncontrolled retries.
 17. Manual role invocation remains unaffected.
