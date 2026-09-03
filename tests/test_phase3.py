@@ -35,7 +35,7 @@ class TestConfigLoading(unittest.TestCase):
         
         # Verify all roles exist
         expected_roles = [
-            "implementer", "senior_implementer", "debugger", "senior_debugger",
+            "implementer", "senior_implementer", "senior_debugger",
             "git", "tester", "reviewer", "designer"
         ]
         for role in expected_roles:
@@ -198,6 +198,54 @@ class TestConfigLoading(unittest.TestCase):
             
             error_msg = str(cm.exception)
             self.assertIn("must be a string", error_msg)
+    
+    def test_override_senior_debugger(self):
+        """Test Phase 12 AC3: project-local override of senior_debugger."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            global_config_path = Path(tmpdir) / "config" / "ai-run.json"
+            global_config_path.parent.mkdir(parents=True)
+
+            global_config = {
+                "kickoff_prompt": "Global prompt",
+                "roles": {
+                    "implementer": {"command": ["global-impl"]},
+                    "senior_debugger": {"command": ["global-senior-debugger"]},
+                    "git": {"command": ["global-git"]},
+                    "tester": {"command": ["global-tester"]},
+                    "reviewer": {"command": ["global-reviewer"]},
+                    "designer": {"command": ["global-designer"]},
+                    "senior_implementer": {"command": ["global-senior-impl"]}
+                },
+                "limits": {
+                    "phase_max_executions": 15,
+                    "senior_debugger_max": 3,
+                    "designer_max": 2
+                }
+            }
+            with open(global_config_path, 'w') as f:
+                json.dump(global_config, f)
+
+            local_config = {
+                "roles": {
+                    "senior_debugger": {"command": ["custom-debug-tool"]}
+                }
+            }
+            local_config_path = Path(tmpdir) / ".ai-run.json"
+            with open(local_config_path, 'w') as f:
+                json.dump(local_config, f)
+
+            original_cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                config = load_config(tmpdir)
+
+                self.assertEqual(
+                    config["roles"]["senior_debugger"]["command"],
+                    ["custom-debug-tool"]
+                )
+                self.assertNotIn("debugger", config["roles"])
+            finally:
+                os.chdir(original_cwd)
 
 
 class TestRuntimeState(unittest.TestCase):
