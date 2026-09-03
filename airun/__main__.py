@@ -200,30 +200,27 @@ def next_command(args: argparse.Namespace) -> int:
         process = launch_runner(
             runner_config["command"],
             config["kickoff_prompt"],
+            runner_config.get("kickoff", True),
             cwd,
         )
         
-        # Log completion
+        if process.returncode != 0:
+            print(f"Runtime failure: {decision.logical_role} ({decision.runner}) "
+                  f"exited {process.returncode}", file=sys.stderr)
+            return 3
+        
+        # Reload project state to check progress
+        new_project_state = read_project_state(state_path)
+        
+        # Log completion with NEXT ROLE from NEW state (after execution)
         log_event(
             log_path,
             f"Phase {project_state.active_phase}",
             "done",
             decision.logical_role,
             decision.runner,
-            f"exit={process.returncode} next={project_state.next_role}",
+            f"exit={process.returncode} next={new_project_state.next_role}",
         )
-        
-        # Check for runtime failure
-        if process.returncode != 0:
-            print(
-                f"Runtime failure: {decision.logical_role} ({decision.runner}) "
-                f"exited {process.returncode}",
-                file=sys.stderr,
-            )
-            return 3
-        
-        # Reload project state to check progress
-        new_project_state = read_project_state(state_path)
         
         # Check phase-advance guardrail
         guardrail_error = check_phase_advance_guardrail(
