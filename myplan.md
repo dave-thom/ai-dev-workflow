@@ -740,6 +740,20 @@ dry-run).
 **Approved 2026-09-03.** The specification amendment described below has been
 accepted by the user and applied to §16, §19 and §33 criterion 14.
 
+**Superseded 2026-09-03 (Phase 12 QA, Defect 4).** Phase 11's R4 invariant
+directly contradicts acceptance criteria 1 and 2 below, and is enabled by
+default (`limits.check_phase_change` defaults to `true`, unset in
+`config/ai-run.json`). Re-tested against the user, the decision is: **a
+mid-phase `Active Phase` edit stops the loop.** R4 is authoritative. This
+phase's "pin the phase, don't stop" mechanism (`runtime.py`'s `pinned_phase`)
+is retained only as the behaviour that applies if `check_phase_change` is
+explicitly disabled in `limits` — it does not run by default and criteria 1–2
+below do not hold under default configuration. `tests/test_phase10.py` and
+`tests/stub/scenario-phase10-midphase-edit.json`, which asserted the
+unconditional (criteria 1–2) behaviour and were bundled into the Phase 12
+commit by mistake, have been removed. §16/§19 as amended below describe the
+disabled-R4 case only; the default behaviour is governed by Phase 11 §22 R4.
+
 **Objective:** terminate `ai-run-phase` on genuine phase completion rather than on
 any change to `Active Phase`.
 
@@ -786,7 +800,7 @@ stops with exit 2 and rule `§22`, naming the fields in conflict.
 * **R1** — `Implementation: COMPLETED` with `QA: NOT_STARTED` and `Next Role` an Implementer tier. Work handed onward untested. Catches `0968bdd`.
 * **R2** — `Next Role: Reviewer` while `QA` is not a pass state.
 * **R3** — `Next Role: Git Assistant` while `Review` is not an approval state.
-* **R4** — `Active Phase` changed by any role other than the Git Assistant. Reported as a contradiction rather than silently absorbed. Configurable via `limits`, default enabled.
+* **R4** — `Active Phase` changed by any role other than the Git Assistant. Reported as a contradiction rather than silently absorbed. Configurable via `limits`, default enabled. This is the authoritative mid-phase-edit behaviour (stop) per the Phase 10/11 conflict resolution recorded in Phase 10 above; Phase 10's continuation mechanism only applies when this is explicitly disabled.
 
 Rules are evaluated only on the post-execution state of a role the orchestrator
 itself launched. Manual operation is unaffected (§30).

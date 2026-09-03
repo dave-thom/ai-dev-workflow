@@ -24,11 +24,11 @@ Status: In Progress
 
 Active Phase: Phase 12 — Debugger Tier Retirement
 
-Current Role: Implementer
+Current Role: Architect
 
-Next Role: Tester
+Next Role: Implementer
 
-Next Action: Test Phase 12 implementation — verify debugger tier retirement, 3-execution ceiling, all routing and tests work correctly.
+Next Action: Fix QA defects — restore .ai-run-state.json and .ai-run.log to .gitignore, and fix tests/test_phase3.py's stale debugger-role assertion. See docs/qa/phase-12-qa-report.md.
 
 ---
 
@@ -42,7 +42,7 @@ Branch: phase-12-debugger-tier-retirement
 
 Implementation: COMPLETED
 
-QA: NOT_STARTED
+QA: FAIL
 
 Review: NOT_STARTED
 
@@ -54,7 +54,7 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: None
+QA Report: docs/qa/phase-12-qa-report.md
 
 Debug Report: None
 
