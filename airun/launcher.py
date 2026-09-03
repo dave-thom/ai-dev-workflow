@@ -12,24 +12,27 @@ def launch_runner(
     command: List[str],
     kickoff_prompt: str,
     workdir: str,
+    kickoff: bool = True,
 ) -> subprocess.CompletedProcess:
     """
     Launch a runner subprocess with batch mode enabled.
     
     Args:
         command: Base command list from configuration
-        kickoff_prompt: Kickoff prompt to append
+        kickoff_prompt: Kickoff prompt to append (only if kickoff is True)
         workdir: Working directory for the subprocess
+        kickoff: Whether to append kickoff prompt (default True)
         
     Returns:
         CompletedProcess with returncode and stdout/stderr
         
-    The command is executed with AI_ROLE_BATCH=1 set in the environment
-    and the kickoff_prompt appended as the final argument.
+    The command is executed with AI_ROLE_BATCH=1 set in the environment.
+    If kickoff is True, the kickoff_prompt is appended as the final argument.
     """
     # Build the full command
     full_command = command.copy()
-    full_command.append(kickoff_prompt)
+    if kickoff:
+        full_command.append(kickoff_prompt)
     
     # Prepare environment with batch mode
     env = os.environ.copy()

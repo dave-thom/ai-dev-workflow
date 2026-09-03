@@ -270,15 +270,15 @@ def test_ai_role_dryrun():
     env["AI_ROLE_DRYRUN"] = "1"
 
     test_cases = [
-        ("implementer", "o-dev"),
-        ("debugger", "o-debug"),
-        ("git", "o-git"),
+        ("implementer", "o-dev", "openrouter/deepseek/deepseek-v3.2"),
+        ("debugger", "o-debug", "openrouter/deepseek/deepseek-v3.2"),
+        ("git", "o-git", "openrouter/deepseek/deepseek-v4-flash"),
     ]
 
-    for role, alias in test_cases:
+    for role, alias, model in test_cases:
         baseline_file = ai_platform / "tests" / "fixtures" / "ai-role-baseline" / f"{alias}.txt"
         result = subprocess.run(
-            [str(ai_role), "opencode", role, "-m", "openrouter/deepseek/deepseek-v3.2"],
+            [str(ai_role), "opencode", role, "-m", model],
             env=env,
             capture_output=True,
             text=True,
@@ -290,21 +290,21 @@ def test_ai_role_dryrun():
         if baseline_file.exists():
             expected = baseline_file.read_text()
             if result.stdout != expected:
-                lines = result.stdout.splitlines()
-                exp_lines = expected.splitlines()
-                body_ok = lines[:2] == exp_lines[:2]
-                has_lifecycle = "# Role Lifecycle" in result.stdout
-                has_role_prompt = any(
-                    marker in result.stdout for marker in [
-                        "# Role: Implementer", "# Role: Debugger",
-                        "# Role: Git", "# Role: Git Assistant",
-                    ]
-                )
-                if body_ok and has_lifecycle and has_role_prompt:
-                    print(f"✓ {alias} ({role}) dry-run produced valid output")
-                else:
-                    print(f"✗ {alias} ({role}) baseline mismatch")
-                    return False
+                print(f"✗ {alias} ({role}) baseline mismatch")
+                # Show first difference
+                import difflib
+                diff = list(difflib.unified_diff(
+                    expected.splitlines(keepends=True),
+                    result.stdout.splitlines(keepends=True),
+                    fromfile='expected',
+                    tofile='actual',
+                    lineterm=''
+                ))
+                if diff:
+                    print("First difference:")
+                    for line in diff[:10]:  # Show first 10 lines of diff
+                        print(line)
+                return False
             else:
                 print(f"✓ {alias} ({role}) baseline matches exactly")
         else:

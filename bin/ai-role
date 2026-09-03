@@ -202,21 +202,21 @@ if [[ "${AI_ROLE_DRYRUN:-0}" == "1" ]]; then
                 printf '%s\n' claude --append-system-prompt "$COMBINED_PROMPT" "$@"
             fi
             ;;
-        opencode)
-            if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
-                # For opencode batch mode, the final argument is the message
-                # All preceding arguments are runtime args
-                if [[ $# -gt 0 ]]; then
-                    LAST_ARG="${@: -1}"
-                    RUNTIME_ARGS=("${@:1:$#-1}")
-                    printf '%s\n' opencode run --auto "${RUNTIME_ARGS[@]}" "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
+opencode)
+                if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+                    # For opencode batch mode, the final argument is the message
+                    # All preceding arguments are runtime args
+                    if [[ $# -gt 0 ]]; then
+                        LAST_ARG="${@: -1}"
+                        RUNTIME_ARGS=("${@:1:$#-1}")
+                        printf '%s\n' opencode run "${RUNTIME_ARGS[@]}" "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
+                    else
+                        printf '%s\n' opencode run "$COMBINED_PROMPT"
+                    fi
                 else
-                    printf '%s\n' opencode run --auto "$COMBINED_PROMPT"
+                    printf '%s\n' opencode --prompt "$COMBINED_PROMPT" "$@"
                 fi
-            else
-                printf '%s\n' opencode --prompt "$COMBINED_PROMPT" "$@"
-            fi
-            ;;
+                ;;
     esac
     exit 0
 fi
@@ -248,13 +248,11 @@ case "$RUNTIME" in
                 RUNTIME_ARGS=("${@:1:$#-1}")
                 exec opencode \
                     run \
-                    --auto \
                     "${RUNTIME_ARGS[@]}" \
                     "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
             else
                 exec opencode \
                     run \
-                    --auto \
                     "$COMBINED_PROMPT"
             fi
         else
