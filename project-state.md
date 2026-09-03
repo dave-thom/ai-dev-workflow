@@ -24,23 +24,23 @@ Status: In Progress
 
 Active Phase: Phase 12 — Debugger Tier Retirement
 
-Current Role: Git Assistant
+Current Role: Implementer
 
-Next Role: Implementer
+Next Role: Tester
 
-Next Action: Implement Phase 12 (Debugger Tier Retirement) per myplan.md — remove the ordinary debugger runner tier, resolve every Next Role: Debugger to senior_debugger, update config/ai-run.json, routing.py, tests, and README.
+Next Action: Test Phase 12 implementation — verify debugger tier retirement, 3-execution ceiling, all routing and tests work correctly.
 
 ---
 
 ## Git
 
-Branch: main
+Branch: phase-12-debugger-tier-retirement
 
 ---
 
 ## Execution
 
-Implementation: NOT_STARTED
+Implementation: COMPLETED
 
 QA: NOT_STARTED
 
