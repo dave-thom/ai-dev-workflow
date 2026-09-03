@@ -203,16 +203,10 @@ if [[ "${AI_ROLE_DRYRUN:-0}" == "1" ]]; then
             fi
             ;;
         opencode)
-            if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
-                # For opencode batch mode, the final argument is the message
-                # All preceding arguments are runtime args
-                if [[ $# -gt 0 ]]; then
-                    LAST_ARG="${@: -1}"
-                    RUNTIME_ARGS=("${@:1:$#-1}")
-                    printf '%s\n' opencode run --auto "${RUNTIME_ARGS[@]}" "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
-                else
-                    printf '%s\n' opencode run --auto "$COMBINED_PROMPT"
-                fi
+if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+                    # For opencode batch mode, all arguments are runtime args
+                    # The composed prompt is the message
+                    printf '%s\n' opencode run "$@" "$COMBINED_PROMPT"
             else
                 printf '%s\n' opencode --prompt "$COMBINED_PROMPT" "$@"
             fi
@@ -240,24 +234,14 @@ case "$RUNTIME" in
         ;;
 
     opencode)
-        if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
-            # For opencode batch mode, the final argument is the message
-            # All preceding arguments are runtime args
-            if [[ $# -gt 0 ]]; then
-                LAST_ARG="${@: -1}"
-                RUNTIME_ARGS=("${@:1:$#-1}")
+if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+                # For opencode batch mode, all arguments are runtime args
+                # The composed prompt is the message
                 exec opencode \
                     run \
-                    --auto \
-                    "${RUNTIME_ARGS[@]}" \
-                    "$COMBINED_PROMPT"$'\n\n'"$LAST_ARG"
-            else
-                exec opencode \
-                    run \
-                    --auto \
+                    "$@" \
                     "$COMBINED_PROMPT"
-            fi
-        else
+            else
             exec opencode \
                 --prompt "$COMBINED_PROMPT" \
                 "$@"

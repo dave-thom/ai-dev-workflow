@@ -153,14 +153,14 @@ def test_ai_run_phase():
         config_content = {
             "kickoff_prompt": "Begin test",
             "roles": {
-                "implementer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "senior_implementer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "debugger": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "senior_debugger": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "git": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "tester": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "reviewer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]},
-                "designer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")]}
+                "implementer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "senior_implementer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "debugger": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "senior_debugger": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "git": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "tester": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "reviewer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
+                "designer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True}
             },
             "limits": {
                 "senior_debugger_max": 3,
@@ -230,7 +230,7 @@ def test_runner_override():
     try:
         override_content = {
             "roles": {
-                "reviewer": {"command": ["tests/stub/stub-runner.py"]}
+                "reviewer": {"command": ["tests/stub/stub-runner.py"], "kickoff": True}
             },
             "limits": {
                 "phase_max_executions": 20
@@ -270,15 +270,15 @@ def test_ai_role_dryrun():
     env["AI_ROLE_DRYRUN"] = "1"
 
     test_cases = [
-        ("implementer", "o-dev"),
-        ("debugger", "o-debug"),
-        ("git", "o-git"),
+        ("implementer", "o-dev", "openrouter/deepseek/deepseek-v3.2"),
+        ("debugger", "o-debug", "openrouter/deepseek/deepseek-v3.2"),
+        ("git", "o-git", "openrouter/deepseek/deepseek-v4-flash"),
     ]
 
-    for role, alias in test_cases:
+    for role, alias, model in test_cases:
         baseline_file = ai_platform / "tests" / "fixtures" / "ai-role-baseline" / f"{alias}.txt"
         result = subprocess.run(
-            [str(ai_role), "opencode", role, "-m", "openrouter/deepseek/deepseek-v3.2"],
+            [str(ai_role), "opencode", role, "-m", model],
             env=env,
             capture_output=True,
             text=True,
@@ -290,21 +290,21 @@ def test_ai_role_dryrun():
         if baseline_file.exists():
             expected = baseline_file.read_text()
             if result.stdout != expected:
-                lines = result.stdout.splitlines()
-                exp_lines = expected.splitlines()
-                body_ok = lines[:2] == exp_lines[:2]
-                has_lifecycle = "# Role Lifecycle" in result.stdout
-                has_role_prompt = any(
-                    marker in result.stdout for marker in [
-                        "# Role: Implementer", "# Role: Debugger",
-                        "# Role: Git", "# Role: Git Assistant",
-                    ]
-                )
-                if body_ok and has_lifecycle and has_role_prompt:
-                    print(f"✓ {alias} ({role}) dry-run produced valid output")
-                else:
-                    print(f"✗ {alias} ({role}) baseline mismatch")
-                    return False
+                print(f"✗ {alias} ({role}) baseline mismatch - byte-for-byte comparison failed")
+                print(f"  Output length: {len(result.stdout)}")
+                print(f"  Expected length: {len(expected)}")
+                
+                # Show first difference
+                for i, (out_char, exp_char) in enumerate(zip(result.stdout, expected)):
+                    if out_char != exp_char:
+                        context_start = max(0, i-20)
+                        context_end = min(len(result.stdout), i+20)
+                        print(f"  First difference at position {i}:")
+                        print(f"    Got: {repr(result.stdout[context_start:context_end])}")
+                        print(f"    Expected: {repr(expected[context_start:context_end])}")
+                        break
+                
+                return False
             else:
                 print(f"✓ {alias} ({role}) baseline matches exactly")
         else:

@@ -88,6 +88,12 @@ def load_config(base_dir: str = None) -> Dict[str, Any]:
                 raise InvalidStateError(
                     f"Role {role_name} command part {i} must be a string, got {type(cmd_part)}"
                 )
+        
+        # Default kickoff to true if not specified
+        if "kickoff" not in role_config:
+            role_config["kickoff"] = True
+        elif not isinstance(role_config["kickoff"], bool):
+            raise InvalidStateError(f"Role {role_name} kickoff must be a boolean")
     
     # Validate limits
     required_limits = ["senior_debugger_max", "designer_max", "phase_max_executions"]

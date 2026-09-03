@@ -11,6 +11,7 @@ from airun.state import ProjectState
 def launch_runner(
     command: List[str],
     kickoff_prompt: str,
+    kickoff_enabled: bool,
     workdir: str,
 ) -> subprocess.CompletedProcess:
     """
@@ -18,18 +19,20 @@ def launch_runner(
     
     Args:
         command: Base command list from configuration
-        kickoff_prompt: Kickoff prompt to append
+        kickoff_prompt: Kickoff prompt to append if kickoff_enabled is True
+        kickoff_enabled: Whether to append kickoff prompt as final argument
         workdir: Working directory for the subprocess
         
     Returns:
         CompletedProcess with returncode and stdout/stderr
         
-    The command is executed with AI_ROLE_BATCH=1 set in the environment
-    and the kickoff_prompt appended as the final argument.
+    The command is executed with AI_ROLE_BATCH=1 set in the environment.
+    If kickoff_enabled is True, the kickoff_prompt is appended as the final argument.
     """
     # Build the full command
     full_command = command.copy()
-    full_command.append(kickoff_prompt)
+    if kickoff_enabled:
+        full_command.append(kickoff_prompt)
     
     # Prepare environment with batch mode
     env = os.environ.copy()
