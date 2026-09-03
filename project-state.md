@@ -22,29 +22,29 @@ Name: AI Platform v2.0
 
 Status: In Progress
 
-Active Phase: Phase 11 — Contradictory State Validation
+Active Phase: Phase 12 — Debugger Tier Retirement
 
-Current Role: Reviewer
+Current Role: Git Assistant
 
-Next Role: Git Assistant
+Next Role: Implementer
 
-Next Action: Integrate approved Phase 11 (Contradictory State Validation, §22) on branch phase/phase-11 into main, per docs/reviews/phase-11-review.md, and advance Active Phase per myplan.md.
+Next Action: Implement Phase 12 (Debugger Tier Retirement) per myplan.md — remove the ordinary debugger runner tier, resolve every Next Role: Debugger to senior_debugger, update config/ai-run.json, routing.py, tests, and README.
 
 ---
 
 ## Git
 
-Branch: phase/phase-11
+Branch: main
 
 ---
 
 ## Execution
 
-Implementation: COMPLETED
+Implementation: NOT_STARTED
 
-QA: PASS
+QA: NOT_STARTED
 
-Review: APPROVED
+Review: NOT_STARTED
 
 ---
 
@@ -54,11 +54,11 @@ Plan: myplan.md
 
 UI Specification: None
 
-QA Report: docs/qa/phase-11-qa-report.md
+QA Report: None
 
 Debug Report: None
 
-Review Report: docs/reviews/phase-11-review.md
+Review Report: None
 
 ---
 
