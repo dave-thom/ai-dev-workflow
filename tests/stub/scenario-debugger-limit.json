@@ -15,13 +15,8 @@
     "exit_code": 0
   },
   {
-    "description": "Debugger request 4",
+    "description": "Debugger request 4 (stopped by limit)",
     "next_role": "debugger",
-    "exit_code": 0
-  },
-  {
-    "description": "Debugger request 5 (stopped by limit)",
-    "next_role": "Debugger",
     "exit_code": 0
   }
 ]

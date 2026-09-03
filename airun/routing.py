@@ -130,36 +130,28 @@ def resolve(state: ProjectState, counters: Dict[str, int], limits: Dict[str, Any
             rule="§7" if implementer_count > 0 else ""
         )
     
-    # Debugger resolution with tiering and limit checks (§8)
+    # Debugger resolution - all requests go to senior_debugger with limit checks (§8)
     if normalized_role == "debugger":
         logical = "debugger"
-        debugger_count = counters.get("debugger", 0)
         senior_debugger_count = counters.get("senior_debugger", 0)
         senior_debugger_max = limits.get("senior_debugger_max", 3)
         
-        # First debugger request
-        if debugger_count == 0:
-            runner = "debugger"
-            rule = ""
-        # Subsequent debugger requests - check senior debugger limit
-        else:
-            if senior_debugger_count >= senior_debugger_max:
-                return Decision(
-                    action="stop",
-                    logical_role=logical,
-                    runner="",
-                    reason=f"Senior debugger limit reached ({senior_debugger_count}/{senior_debugger_max})",
-                    rule="§8"
-                )
-            runner = "senior_debugger"
-            rule = "§8"
+        # Check senior debugger limit
+        if senior_debugger_count >= senior_debugger_max:
+            return Decision(
+                action="stop",
+                logical_role=logical,
+                runner="",
+                reason=f"Senior debugger limit reached ({senior_debugger_count}/{senior_debugger_max})",
+                rule="§8"
+            )
         
         return Decision(
             action="launch",
             logical_role=logical,
-            runner=runner,
+            runner="senior_debugger",
             reason="",
-            rule=rule
+            rule="§8"
         )
     
     # Simple role mappings

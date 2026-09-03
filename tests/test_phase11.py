@@ -138,7 +138,7 @@ def _write_stub_config(test_dir, ai_platform, extra_limits=None):
         "roles": {
             "implementer": {"command": [stub_runner], "kickoff": True},
             "senior_implementer": {"command": [stub_runner], "kickoff": True},
-            "debugger": {"command": [stub_runner], "kickoff": True},
+            
             "senior_debugger": {"command": [stub_runner], "kickoff": True},
             "git": {"command": [stub_runner], "kickoff": True},
             "tester": {"command": [stub_runner], "kickoff": True},

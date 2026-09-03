@@ -78,23 +78,23 @@ class TestRoutingEngine(unittest.TestCase):
         self.assertEqual(decision.runner, "senior_implementer")
         self.assertEqual(decision.rule, "§7")
     
-    # Test 3: Next Role: Debugger with debugger == 0 resolves to debugger
+    # Test 3: Next Role: Debugger resolves to senior_debugger (ordinary debugger tier retired)
     def test_debugger_first_call(self):
         state = self._create_state(next_role="Debugger")
-        counters = self._create_counters(debugger=0)
+        counters = self._create_counters(debugger=0, senior_debugger=0)
         limits = self._create_limits()
         
         decision = resolve(state, counters, limits)
         
         self.assertEqual(decision.action, "launch")
         self.assertEqual(decision.logical_role, "debugger")
-        self.assertEqual(decision.runner, "debugger")
-        self.assertEqual(decision.rule, "")
+        self.assertEqual(decision.runner, "senior_debugger")
+        self.assertEqual(decision.rule, "§8")
     
-    # Test 4: Next Role: Debugger with debugger == 1 resolves to senior_debugger
+    # Test 4: Next Role: Debugger with senior_debugger == 1 also resolves to senior_debugger
     def test_debugger_second_call(self):
         state = self._create_state(next_role="Debugger")
-        counters = self._create_counters(debugger=1)
+        counters = self._create_counters(debugger=0, senior_debugger=1)
         limits = self._create_limits()
         
         decision = resolve(state, counters, limits)
@@ -107,7 +107,7 @@ class TestRoutingEngine(unittest.TestCase):
     # Test 5: senior_debugger == 3 with Next Role: Debugger stops with rule §8
     def test_senior_debugger_limit_reached(self):
         state = self._create_state(next_role="Debugger")
-        counters = self._create_counters(debugger=1, senior_debugger=3)
+        counters = self._create_counters(debugger=0, senior_debugger=3)
         limits = self._create_limits()
         
         decision = resolve(state, counters, limits)
@@ -355,10 +355,10 @@ class TestRoutingEngine(unittest.TestCase):
     
     def test_debugger_flow_with_limits(self):
         # Simulate a debugger flow that hits the senior debugger limit
-        counters = self._create_counters(debugger=1, senior_debugger=2)
+        counters = self._create_counters(debugger=0, senior_debugger=2)
         limits = self._create_limits()
         
-        # First senior debugger (third debugger overall)
+        # Third debugger (senior_debugger count 2)
         state = self._create_state(next_role="Debugger")
         decision = resolve(state, counters, limits)
         self.assertEqual(decision.action, "launch")

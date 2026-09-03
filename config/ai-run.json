@@ -3,7 +3,6 @@
   "roles": {
     "implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v3.2"], "kickoff": false },
     "senior_implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v4-pro"], "kickoff": false },
-    "debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v3.2"], "kickoff": false },
     "senior_debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v4-pro"], "kickoff": false },
     "git": { "command": ["ai-role", "opencode", "git", "-m", "openrouter/deepseek/deepseek-v4-flash"], "kickoff": false },
     "tester": { "command": ["ai-role", "claude", "tester", "--model", "sonnet", "--permission-mode", "auto"], "kickoff": true },

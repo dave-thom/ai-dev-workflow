@@ -155,7 +155,6 @@ def test_ai_run_phase():
             "roles": {
                 "implementer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
                 "senior_implementer": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
-                "debugger": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
                 "senior_debugger": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
                 "git": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},
                 "tester": {"command": [str(ai_platform / "tests" / "stub" / "stub-runner.py")], "kickoff": True},

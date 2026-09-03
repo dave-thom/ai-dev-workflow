@@ -22,9 +22,9 @@ def test_ac1():
     
     config = load_config(str(project_root))
     
-    # Verify all eight runners
+    # Verify all seven runners (debugger tier retired)
     expected_roles = [
-        "implementer", "senior_implementer", "debugger", "senior_debugger",
+        "implementer", "senior_implementer", "senior_debugger",
         "git", "tester", "reviewer", "designer"
     ]
     

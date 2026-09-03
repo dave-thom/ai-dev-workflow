@@ -404,7 +404,7 @@ Reason: None
             "roles": {
                 "implementer": {"command": [str(stub_runner)], "kickoff": True},
                 "senior_implementer": {"command": [str(stub_runner)], "kickoff": True},
-                "debugger": {"command": [str(stub_runner)], "kickoff": True},
+                
                 "senior_debugger": {"command": [str(stub_runner)], "kickoff": True},
                 "git": {"command": [str(stub_runner)], "kickoff": True},
                 "tester": {"command": [str(stub_runner)], "kickoff": True},

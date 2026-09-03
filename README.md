@@ -79,7 +79,6 @@ Configuration is stored in `config/ai-run.json`:
   "roles": {
     "implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v3.2"] },
     "senior_implementer": { "command": ["ai-role", "opencode", "implementer", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
-    "debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v3.2"] },
     "senior_debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v4-pro"] },
     "git": { "command": ["ai-role", "opencode", "git", "-m", "openrouter/deepseek/deepseek-v4-flash"] },
     "tester": { "command": ["ai-role", "claude", "tester", "--model", "sonnet", "--permission-mode", "auto"] },
@@ -193,13 +192,9 @@ Reviewer
 
 Debugger:
 
-DeepSeek V3.2
+Every debugger request is routed to the senior debugger runner (DeepSeek V4 Pro). The ordinary debugger tier is retired.
 
-↓
-
-DeepSeek R1
-
-only when V3.2 cannot make further progress.
+Maximum 3 debugger executions per phase.
 
 ---
 

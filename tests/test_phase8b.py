@@ -145,7 +145,6 @@ def _write_config(test_dir, ai_platform):
         "roles": {
             "implementer": {"command": [stub]},
             "senior_implementer": {"command": [stub]},
-            "debugger": {"command": [stub]},
             "senior_debugger": {"command": [stub]},
             "git": {"command": [stub]},
             "tester": {"command": [stub]},
@@ -256,7 +255,7 @@ def test_cross_phase():
 
 
 def test_debugger_limit():
-    """AC 3: 5 debugger requests -> 1 debugger, 3 senior, stops on 5th with S8."""
+    """AC 3: 4 debugger requests -> 3 senior, stops on 4th with S8."""
     print("\n=== AC 3: Debugger Limit ===")
 
     test_dir, ai_platform = setup_test_directory("Phase 8", "debugger")
@@ -276,12 +275,12 @@ def test_debugger_limit():
         state = _read_state(test_dir)
         print(json.dumps(state, indent=2))
 
-        assert state["counters"]["debugger"] == 1, \
-            f"debugger expected 1, got {state['counters']['debugger']}"
+        assert state["counters"]["debugger"] == 0, \
+            f"debugger expected 0, got {state['counters']['debugger']}"
         assert state["counters"]["senior_debugger"] == 3, \
             f"senior_debugger expected 3, got {state['counters']['senior_debugger']}"
-        assert state["total_runs"] == 4, \
-            f"total_runs expected 4, got {state['total_runs']}"
+        assert state["total_runs"] == 3, \
+            f"total_runs expected 3, got {state['total_runs']}"
 
         print("PASS")
         return True

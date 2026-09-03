@@ -97,28 +97,29 @@ def test_ac2():
 
 
 def test_ac3():
-    """Acceptance criterion 3: Next Role: Debugger with debugger == 0 resolves to debugger."""
-    print("Testing AC3: First Debugger → ordinary debugger...")
+    """Acceptance criterion 3: Next Role: Debugger resolves to senior_debugger (ordinary debugger tier retired)."""
+    print("Testing AC3: First Debugger → senior_debugger...")
     
     state = create_state(next_role="Debugger")
-    counters = create_counters(debugger=0)
+    counters = create_counters(debugger=0, senior_debugger=0)
     limits = create_limits()
     
     decision = resolve(state, counters, limits)
     
     assert decision.action == "launch", f"Expected launch, got {decision.action}"
     assert decision.logical_role == "debugger", f"Expected logical role 'debugger', got '{decision.logical_role}'"
-    assert decision.runner == "debugger", f"Expected runner 'debugger', got '{decision.runner}'"
+    assert decision.runner == "senior_debugger", f"Expected runner 'senior_debugger', got '{decision.runner}'"
+    assert decision.rule == "§8", f"Expected rule '§8', got '{decision.rule}'"
     
     print("  ✓ AC3 passed")
 
 
 def test_ac4():
-    """Acceptance criterion 4: Next Role: Debugger with debugger == 1 resolves to senior_debugger."""
-    print("Testing AC4: Later Debugger → senior_debugger...")
+    """Acceptance criterion 4: Next Role: Debugger with senior_debugger == 1 also resolves to senior_debugger."""
+    print("Testing AC4: Second Debugger → senior_debugger...")
     
     state = create_state(next_role="Debugger")
-    counters = create_counters(debugger=1)
+    counters = create_counters(debugger=0, senior_debugger=1)
     limits = create_limits()
     
     decision = resolve(state, counters, limits)
@@ -136,7 +137,7 @@ def test_ac5():
     print("Testing AC5: Senior debugger limit reached...")
     
     state = create_state(next_role="Debugger")
-    counters = create_counters(debugger=1, senior_debugger=3)
+    counters = create_counters(debugger=0, senior_debugger=3)
     limits = create_limits()
     
     decision = resolve(state, counters, limits)
@@ -324,8 +325,8 @@ def test_ac14():
     test_cases = [
         ("IMPLEMENTER", "implementer", "implementer"),
         ("iMpLeMeNtEr", "implementer", "implementer"),
-        ("debugger", "debugger", "debugger"),
-        ("DEBUGGER", "debugger", "debugger"),
+        ("debugger", "debugger", "senior_debugger"),
+        ("DEBUGGER", "debugger", "senior_debugger"),
         ("Git   Assistant", "git assistant", "git"),
         ("  Git Assistant  ", "git assistant", "git"),
         ("UI  Designer", "designer", "designer"),

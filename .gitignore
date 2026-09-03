@@ -1,3 +1,2 @@
-.DS_Store
-.ai-run-state.json
-.ai-run.log
+__pycache__/
+*.pyc
