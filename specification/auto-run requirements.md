@@ -123,10 +123,11 @@ and:
 
 ```text
 Debugger
-    → o-debug
-or
     → o-sdebug
 ```
+
+Amended 2026-09-03: the ordinary debugger tier is retired. Every Debugger request
+resolves to the senior debugger.
 
 `project-state.md` should not need to know whether the ordinary or senior implementation tier is selected.
 
@@ -143,7 +144,7 @@ o-dev
   ↓
 c-test
   ↓ FAIL
-o-debug
+o-sdebug
   ↓
 c-test
   ↓ FAIL
@@ -209,7 +210,9 @@ All subsequent Implementer invocations in same phase
 
 # 8. Debugger Routing Rule
 
-The first request for:
+Amended 2026-09-03. The ordinary debugger tier is retired.
+
+Every request for:
 
 ```text
 Next Role: Debugger
@@ -218,26 +221,22 @@ Next Role: Debugger
 during a phase resolves to:
 
 ```text
-o-debug
-```
-
-Any subsequent Debugger request during the same phase resolves to:
-
-```text
 o-sdebug
 ```
 
-The ordinary debugger may therefore run at most once per phase.
-
-The senior debugger may run at most three times per phase by default.
+The senior debugger may run at most three times per phase by default, bounded by
+`senior_debugger_max`. That single limit now bounds all debugging in a phase.
 
 This allows for the observed pattern where resolving one blocking defect exposes another defect that could not previously be reached.
+
+Rationale for retiring the ordinary tier: the ordinary debugger is prone to
+unproductive cycles, and its one permitted invocation per phase cost a full
+debug/test round-trip before the loop escalated. Resolving directly to the senior
+debugger trades a small increase in per-run cost for fewer wasted cycles.
 
 The maximum default debug sequence is therefore:
 
 ```text
-o-debug
-c-test
 o-sdebug
 c-test
 o-sdebug
@@ -956,8 +955,8 @@ The first implementation is complete when:
 1. `ai-next --dry-run` correctly resolves every supported logical role without executing it.
 2. First Implementer invocation in a phase resolves to ordinary Implementer.
 3. Every later Implementer invocation in the same phase resolves to Senior Developer.
-4. First Debugger invocation resolves to ordinary Debugger.
-5. Subsequent Debugger invocations resolve to Senior Debugger.
+4. Every Debugger invocation in a phase resolves to Senior Debugger (amended 2026-09-03).
+5. No ordinary Debugger tier is resolved; the `debugger` runner is retired (amended 2026-09-03).
 6. Senior Debugger cannot run more than three times per phase.
 7. Architect state always stops automation.
 8. Human-intervention state always stops automation.

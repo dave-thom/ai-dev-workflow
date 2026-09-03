@@ -577,9 +577,9 @@ new `tests/test_phase8c.py`. Same constraints as Phase 8b: no change to `airun/`
 | 1. Dry-run resolves every supported role | Phase 4 AC 1–11, Phase 5 AC 2 |
 | 2. First Implementer → ordinary | Phase 4 AC 1 |
 | 3. Later Implementer → senior | Phase 4 AC 2 |
-| 4. First Debugger → ordinary | Phase 4 AC 3 |
-| 5. Later Debugger → senior | Phase 4 AC 4 |
-| 6. Senior Debugger max 3 | Phase 4 AC 5, Phase 8b AC 3 |
+| 4. Every Debugger → senior (amended) | Phase 12 AC 1 |
+| 5. Ordinary Debugger tier retired (amended) | Phase 12 AC 1, AC 3 |
+| 6. Senior Debugger max 3 | Phase 12 AC 2, Phase 8b AC 3 |
 | 7. Architect always stops | Phase 4 AC 6, Phase 5 AC 6, Phase 8c AC 1 |
 | 8. Human intervention always stops | Phase 4 AC 7, Phase 8c AC 2 |
 | 9. Unknown/malformed always stops | Phase 2 AC 3–5, Phase 4 AC 10, Phase 5 AC 7 |
@@ -814,3 +814,39 @@ change affecting manual operation, and is a separate user decision.
 The rationale sentence in that added section justifies the instruction in
 orchestrator terms — counter resets and senior-tier routing. Restating it in
 workflow terms is a one-line prompt edit, listed here for visibility only.
+
+## Phase 12 — Debugger Tier Retirement
+
+**Approved 2026-09-03.** Specification §5, §6, §8 and §33 criteria 4–5 amended
+accordingly.
+
+**Objective:** resolve every Debugger request to the senior debugger, bounded by a
+single limit.
+
+**Scope:** `airun/routing.py` (debugger branch, currently lines 133–163),
+`config/ai-run.json`, `test_phase4_ac.py`, `tests/stub/scenario-debugger-limit.json`,
+`tests/test_phase8b.py`, `README.md`.
+
+Remove the `debugger` runner from the role configuration. Every `Next Role:
+Debugger` resolves to the `senior_debugger` runner and increments the
+`senior_debugger` counter, so `senior_debugger_max` bounds all debugging in a
+phase. The `debugger` key is retained in the runtime counters dictionary so the
+`.ai-run-state.json` schema version is unchanged; it remains zero.
+
+This phase is independent of Phases 9–11 and may be implemented in any order
+relative to them.
+
+**Acceptance criteria:**
+
+1. The first `Next Role: Debugger` in a phase resolves to runner `senior_debugger`, not `debugger`.
+2. The second and third resolve to `senior_debugger`, and the fourth stops with exit 2 and rule `§8` — three debugger executions per phase in total, not four.
+3. `config/ai-run.json` contains no `debugger` role, and a project-local `.ai-run.json` that overrides `senior_debugger` changes the resolved runner.
+4. `.ai-run-state.json` retains `schema: 1` and its existing counter keys; `debugger` stays at zero across a phase containing three debugger executions.
+5. `scenario-debugger-limit.json` is updated to the three-execution ceiling, and Phase 8b's other three scenarios pass unchanged.
+6. README's runner table and the documented debug sequence match the amended §8.
+
+**Risk:** the previous ceiling allowed one ordinary plus three senior executions.
+The amended ceiling is three total, so a phase that previously escalated to human
+investigation on the fifth Debugger request now does so on the fourth. This is
+intentional — the retired tier was the wasted cycle — but it shortens the
+automatic debug budget by one round-trip.
