@@ -16,12 +16,14 @@ class RuntimeState:
         self.path = path
         self._data: Optional[Dict[str, Any]] = None
     
-    def load(self, current_phase: str) -> Dict[str, Any]:
+    def load(self, current_phase: str, pinned_phase: Optional[str] = None) -> Dict[str, Any]:
         """
         Load runtime state, reconciling with current phase.
         
         Args:
             current_phase: Current Active Phase from project-state.md
+            pinned_phase: Optional pinned phase to use instead of file phase
+                          for counter reset logic (Phase 10 feature)
         
         Returns:
             Counter dictionary for the current phase.
@@ -29,10 +31,13 @@ class RuntimeState:
         Raises:
             StopRequired: If state file is invalid or corrupted.
         """
+        # Use pinned phase if provided, otherwise use current_phase from file
+        effective_phase = pinned_phase if pinned_phase is not None else current_phase
+        
         # Initialize default structure
         default_data = {
             "schema": self.SCHEMA_VERSION,
-            "phase": current_phase,
+            "phase": effective_phase,
             "counters": {
                 "implementer": 0,
                 "senior_implementer": 0,
@@ -122,9 +127,9 @@ class RuntimeState:
         
         # Phase reconciliation
         stored_phase = self._data.get("phase")
-        if stored_phase != current_phase:
+        if stored_phase != effective_phase:
             # Reset all counters and phase
-            self._data["phase"] = current_phase
+            self._data["phase"] = effective_phase
             self._data["counters"] = default_data["counters"].copy()
             self._data["total_runs"] = 0
         
