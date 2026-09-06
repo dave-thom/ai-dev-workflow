@@ -150,8 +150,22 @@ def next_command(args: argparse.Namespace, return_execution_info: bool = False, 
         if decision.action == "launch" and decision.logical_role.lower() == "tester":
             handoff_result = check_git_handoff_guard(cwd, project_state.branch)
             if handoff_result:
-                # This should stop with exit code 2 (role-contract violation)
-                print(f"Git handoff guard violation: {handoff_result}")
+                # Role-contract violation: stop with exit code 2.
+                # Dry-run must not mutate, so the logbook is only written for a
+                # real run.
+                if not args.dry_run:
+                    log_event(
+                        log_path,
+                        f"Phase {project_state.active_phase}",
+                        "stop",
+                        decision.logical_role,
+                        decision.runner,
+                        f"Git handoff guard: {handoff_result}",
+                    )
+                print(
+                    f"Git handoff guard violation: {handoff_result}",
+                    file=sys.stderr,
+                )
                 return 2
         
         # For dry-run, just print information
