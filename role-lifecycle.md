@@ -64,6 +64,17 @@ Roles must not:
 * record rationale already documented elsewhere
 * accumulate links to superseded reports
 * copy report contents into `project-state.md`
+* change `Active Phase`
+
+## Active Phase
+
+`Active Phase` is owned exclusively by the Git Assistant.
+
+Only the Git Assistant may change its value. Every other role must leave it exactly as it found it, including when its own work has completed the phase.
+
+A role that believes the phase is finished records that in `Status`, `Next Role` and `Next Action`, and hands off. Advancing the phase is the Git Assistant's step, taken when the phase's work is committed.
+
+A change to `Active Phase` by any other role is a contradictory workflow state and stops the workflow.
 
 Detailed information belongs in the mandatory deliverable for the role.
 

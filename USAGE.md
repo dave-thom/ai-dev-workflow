@@ -241,7 +241,31 @@ Both are written to the project root and must stay git-ignored.
 
 ---
 
-## 9. Common Stops
+## 9. Is It Running, Or Is It Stuck?
+
+Claude-backed roles run under `claude -p`, which prints **nothing** until the whole run
+finishes. `ai-run` inherits that output, so after `Launching tester -> tester...` the
+terminal stays silent for the entire run. A role that runs a real test suite can be quiet
+for several minutes — a 22-fixture eval suite against a live API took 6m15s. Silence is
+not a hang.
+
+To confirm from another terminal:
+
+```bash
+ps -eo pid,etime,command | grep -E "tsx|npm|claude" | grep -v grep
+```
+
+`etime` is how long each process has been alive (`MM:SS`, or `HH:MM:SS` past an hour), and
+the command column shows what the role is executing *right now* — a test run, a build, a
+git command. If the runner is listed and the command it is running keeps changing between
+checks, it is working. Adjust the pattern to your project's toolchain (`pytest`, `go test`,
+`cargo`, ...).
+
+If nothing matches, the run has actually ended — read the last line of `.ai-run.log`.
+
+---
+
+## 10. Common Stops
 
 | Message                                        | Cause and fix                                                              |
 | ---------------------------------------------- | -------------------------------------------------------------------------- |
@@ -258,7 +282,7 @@ Both are written to the project root and must stay git-ignored.
 
 ---
 
-## 10. Typical Session
+## 11. Typical Session
 
 ```bash
 cd ~/projects/myproject
@@ -266,6 +290,9 @@ cd ~/projects/myproject
 ai-next --dry-run     # confirm what will happen
 ai-run-phase          # run one complete phase
 tail -f .ai-run.log   # watch it, in another terminal
+
+# still going, or stuck? (another terminal — see section 9)
+ps -eo pid,etime,command | grep -E "tsx|npm|claude" | grep -v grep
 
 ai-run                # run to the end of the plan
 ```
