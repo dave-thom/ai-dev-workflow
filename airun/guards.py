@@ -5,11 +5,11 @@ import subprocess
 from typing import Optional, Tuple
 
 
-# Role deliverables the Tester and Debugger are required to write but are not
-# authorised to commit. Changes confined to these directories do not affect the
-# code under test, so they must not block a Tester handoff (only the Git
-# Assistant may commit them, and it does not always run between two Testers).
-DELIVERABLE_PREFIXES = ("docs/qa/", "docs/debug/")
+# Role deliverables the Tester, Debugger and Reviewer are required to write but
+# are not authorised to commit. Changes confined to these directories do not
+# affect the code under test, so they must not block a Tester handoff (only the
+# Git Assistant may commit them, and it does not always run between two Testers).
+DELIVERABLE_PREFIXES = ("docs/qa/", "docs/debug/", "docs/reviews/")
 
 
 def check_ignore_guard(workdir: str) -> Optional[str]:
