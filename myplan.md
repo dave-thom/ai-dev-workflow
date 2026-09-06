@@ -247,7 +247,9 @@ Skipped when the working directory is not a git repository.
 
 1. working directory is a git repository
 2. current branch equals `Git / Branch` in `project-state.md`
-3. `git status --porcelain` is empty
+3. `git status --porcelain` reports no changes outside `docs/qa/` and
+   `docs/debug/` (role deliverables the Tester and Debugger must write but
+   may not commit; they do not affect the code under test)
 4. an upstream exists: `git rev-parse --abbrev-ref --symbolic-full-name @{u}`
 5. `git fetch <remote> <branch>` succeeds, then local `HEAD` equals the upstream commit
 

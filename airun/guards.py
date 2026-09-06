@@ -5,6 +5,13 @@ import subprocess
 from typing import Optional, Tuple
 
 
+# Role deliverables the Tester and Debugger are required to write but are not
+# authorised to commit. Changes confined to these directories do not affect the
+# code under test, so they must not block a Tester handoff (only the Git
+# Assistant may commit them, and it does not always run between two Testers).
+DELIVERABLE_PREFIXES = ("docs/qa/", "docs/debug/")
+
+
 def check_ignore_guard(workdir: str) -> Optional[str]:
     """
     Check that .ai-run-state.json and .ai-run.log are git-ignored.
@@ -78,17 +85,23 @@ def check_git_handoff_guard(
     except subprocess.CalledProcessError:
         return "Cannot determine current branch"
     
-    # 2. Check for uncommitted changes
+    # 2. Check for uncommitted changes, ignoring role deliverables
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "--porcelain", "-z"],
             cwd=workdir,
             capture_output=True,
             text=True,
             check=True,
         )
-        if result.stdout.strip():
-            return "Uncommitted changes present"
+        # -z gives NUL-terminated, never-quoted records of the form "XY path".
+        # A rename also emits its original path as a bare trailing record.
+        for record in result.stdout.split("\0"):
+            if not record:
+                continue
+            path = record[3:] if record[2:3] == " " else record
+            if not path.startswith(DELIVERABLE_PREFIXES):
+                return "Uncommitted changes present"
     except subprocess.CalledProcessError:
         return "Cannot check git status"
     

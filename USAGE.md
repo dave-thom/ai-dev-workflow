@@ -69,6 +69,9 @@ Two guards will stop the run if these are not satisfied:
 2. **Tester handoff guard** (before each Tester launch) — the working tree must be
    clean, the current branch must equal `Branch` in `project-state.md`, an upstream
    must be configured, and local `HEAD` must equal the upstream after a fetch.
+   Changes under `docs/qa/` and `docs/debug/` are exempt from the clean-tree
+   check: the Tester and Debugger must write those reports but may not commit
+   them, and they do not affect the code under test.
 
 A remote is therefore mandatory. If you have no hosted remote, a local bare repository
 works offline and needs no credentials:
