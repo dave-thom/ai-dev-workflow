@@ -50,14 +50,20 @@ Before handing fixes back to the Tester, the Debugger must:
 * complete the required defect fixes
 * run appropriate local verification
 * commit all code changes made to resolve the confirmed defects
-* push the active phase branch to the remote repository
+* push the active phase branch to the remote repository, configuring upstream
+  tracking on first push (`git push -u origin <branch>`)
 * verify the working tree is clean
 * verify the pushed branch contains the fixes intended for re-testing
+* verify the branch has an upstream and local `HEAD` equals it
 * update `project-state.md` with current state only, including the active branch,
   re-test status, next role and relevant current deliverable pointers
 
 A fix must not be marked ready for re-test until the corrected code is available
 on the remote active phase branch.
+
+The Tester handoff is gated by the git handoff guard, which requires the phase
+branch to have upstream tracking configured. A push that does not set upstream
+will stop automation even though the code reached the remote.
 
 Debugger commits are provisional. The Debugger must:
 
@@ -175,7 +181,8 @@ Debugging is complete when:
 * mandatory deliverables have been produced
 * appropriate local verification has completed
 * all debugging changes are committed to the active phase branch
-* the active phase branch has been pushed to the remote repository
+* the active phase branch has been pushed to the remote repository with upstream
+  tracking configured
 * the working tree is clean
 * the implementation is ready and available for re-testing
 

@@ -49,21 +49,27 @@ The Implementer may:
 
 * create the approved phase branch
 * make provisional commits containing work for the current phase
-* push the active phase branch
+* push the active phase branch, configuring upstream tracking
 
 Before handing work to the Tester, the Implementer must:
 
 * complete the assigned implementation
 * run appropriate local verification
 * commit all implementation changes belonging to the current phase
-* push the active phase branch to the remote repository
+* push the active phase branch to the remote repository, configuring upstream
+  tracking on first push (`git push -u origin <branch>`)
 * verify the working tree is clean
 * verify the pushed branch contains the code intended for testing
+* verify the branch has an upstream and local `HEAD` equals it
 * update `project-state.md` with current state only, including the active branch,
   implementation status, next role and relevant current deliverable pointers
 
 Implementation must not be marked ready for testing until the code required for
 testing is available on the remote phase branch.
+
+The Tester handoff is gated by the git handoff guard, which requires the phase
+branch to have upstream tracking configured. A push that does not set upstream
+will stop automation even though the code reached the remote.
 
 These commits are provisional and do not indicate that the phase has passed
 testing or review.
@@ -196,7 +202,8 @@ Implementation is complete when:
 * no known implementation work remains for the phase
 * appropriate local verification has completed
 * all implementation changes are committed to the active phase branch
-* the active phase branch has been pushed to the remote repository
+* the active phase branch has been pushed to the remote repository with upstream
+  tracking configured
 * the working tree is clean
 * the implementation is available for Tester execution
 
