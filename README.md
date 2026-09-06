@@ -18,6 +18,13 @@ This separation allows every role to remain focused on its area of responsibilit
 
 ---
 
+# Documentation
+
+* `USAGE.md` - User guide for configuring and driving `ai-run`
+* [ai-run Field Guide](https://claude.ai/code/artifact/69927851-d128-42f6-804d-ef215e94f481) - HTML version of `USAGE.md`
+
+---
+
 # Directory Structure
 
 ```
