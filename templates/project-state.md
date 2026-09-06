@@ -46,6 +46,15 @@ QA: NOT_STARTED
 
 Review: NOT_STARTED
 
+These three fields hold one value each, from the sets below and nothing else. Values are compared
+exactly, so prose, a report path, or more than one outcome in a field matches nothing.
+
+| Field | Permitted values |
+| --- | --- |
+| Implementation | NOT_STARTED, IN_PROGRESS, COMPLETED |
+| QA | NOT_STARTED, PASS, FAIL |
+| Review | NOT_STARTED, APPROVED, CHANGES_REQUESTED |
+
 ---
 
 ## Current Deliverables

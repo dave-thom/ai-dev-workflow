@@ -76,6 +76,22 @@ A role that believes the phase is finished records that in `Status`, `Next Role`
 
 A change to `Active Phase` by any other role is a contradictory workflow state and stops the workflow.
 
+## Execution Field Values
+
+`Implementation`, `QA` and `Review` are status fields, not prose. Each holds exactly one value from its permitted set, and nothing else:
+
+| Field | Permitted values |
+| --- | --- |
+| `Implementation` | `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED` |
+| `QA` | `NOT_STARTED`, `PASS`, `FAIL` |
+| `Review` | `NOT_STARTED`, `APPROVED`, `CHANGES_REQUESTED` |
+
+These values are compared exactly. A field containing a sentence, a phase name, a report path, a date, or more than one outcome matches nothing — which both blocks legitimate handoffs and disables the checks that depend on the field.
+
+The values describe the **current** phase only. A phase that begins resets them; do not carry a previous phase's outcome forward and do not record two outcomes in one field.
+
+What was implemented, what was tested, what failed and which report holds the evidence belongs in the role's deliverable, referenced from `Current Deliverables`. Never in these fields.
+
 Detailed information belongs in the mandatory deliverable for the role.
 
 `project-state.md` records **where the workflow is now**.
