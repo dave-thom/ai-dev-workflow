@@ -51,18 +51,29 @@ The Implementer may:
 * make provisional commits containing work for the current phase
 * push the active phase branch, configuring upstream tracking
 
-Before handing work to the Tester, the Implementer must:
+Before writing any code, the Implementer must be on the branch named by `Branch`
+in `project-state.md`, creating it from the current branch if it does not yet
+exist (`git checkout -b <branch>`). The phase branch is entered before the work
+begins; it is never created retrospectively around work already committed
+elsewhere.
+
+Before handing work to the Tester, the Implementer must, in this order:
 
 * complete the assigned implementation
 * run appropriate local verification
-* commit all implementation changes belonging to the current phase
+* update `project-state.md` with current state only, including the active branch,
+  implementation status, next role and relevant current deliverable pointers
+* commit all implementation changes belonging to the current phase, together with
+  the updated `project-state.md`
 * push the active phase branch to the remote repository, configuring upstream
   tracking on first push (`git push -u origin <branch>`)
 * verify the working tree is clean
 * verify the pushed branch contains the code intended for testing
 * verify the branch has an upstream and local `HEAD` equals it
-* update `project-state.md` with current state only, including the active branch,
-  implementation status, next role and relevant current deliverable pointers
+
+The order matters. `project-state.md` is updated before the final commit, not
+after it: updating it afterwards leaves the tree dirty and local `HEAD` ahead of
+the remote, which stops the automation at the Tester handoff.
 
 Implementation must not be marked ready for testing until the code required for
 testing is available on the remote phase branch.

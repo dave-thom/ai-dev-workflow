@@ -163,8 +163,15 @@ After successful integration of an approved phase:
 
 1. Read `myplan.md` to determine the next phase
 2. Set `Active Phase` to that next phase in `project-state.md`
-3. Set `Next Role` to the role required by that next phase
-4. If `myplan.md` has no further phase, set `Next Role: Architect`
+3. Set `Branch` to the branch name the next phase will be implemented on, following
+   the project's branching convention (for example `phase-19-implementation`). The
+   branch need not exist yet; the Implementer creates it as its first act.
+4. Set `Next Role` to the role required by that next phase
+5. If `myplan.md` has no further phase, set `Next Role: Architect`
+
+`Branch` must never be left naming the integration target (for example `master`)
+while a phase is active. That is what causes an Implementer to build the phase on
+the integration branch and create the phase branch retrospectively.
 
 This responsibility ensures cross-phase automation correctly resets counters and routes the first Implementer of the next phase to the ordinary tier rather than the senior tier.
 

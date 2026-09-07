@@ -45,18 +45,23 @@ The Debugger must not:
 The Debugger is responsible for making completed fixes available to the Tester on
 the remote active phase branch.
 
-Before handing fixes back to the Tester, the Debugger must:
+Before handing fixes back to the Tester, the Debugger must, in this order:
 
 * complete the required defect fixes
 * run appropriate local verification
-* commit all code changes made to resolve the confirmed defects
+* update `project-state.md` with current state only, including the active branch,
+  re-test status, next role and relevant current deliverable pointers
+* commit all code changes made to resolve the confirmed defects, together with the
+  updated `project-state.md`
 * push the active phase branch to the remote repository, configuring upstream
   tracking on first push (`git push -u origin <branch>`)
 * verify the working tree is clean
 * verify the pushed branch contains the fixes intended for re-testing
 * verify the branch has an upstream and local `HEAD` equals it
-* update `project-state.md` with current state only, including the active branch,
-  re-test status, next role and relevant current deliverable pointers
+
+The order matters. `project-state.md` is updated before the commit, not after it:
+updating it afterwards leaves the tree dirty and local `HEAD` ahead of the remote,
+which stops the automation at the Tester handoff.
 
 A fix must not be marked ready for re-test until the corrected code is available
 on the remote active phase branch.
