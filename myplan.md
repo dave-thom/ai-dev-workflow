@@ -246,16 +246,28 @@ Skipped when the working directory is not a git repository.
 `Next Role` is `Tester`):
 
 1. working directory is a git repository
-2. current branch equals `Git / Branch` in `project-state.md`
-3. `git status --porcelain` reports no changes outside `docs/qa/`,
-   `docs/debug/` and `docs/reviews/` (role deliverables the Tester, Debugger
-   and Reviewer must write but may not commit; they do not affect the code
-   under test)
+2. `git status --porcelain` reports no changes outside `docs/qa/`, `docs/debug/`,
+   `docs/reviews/` and `project-state.md` (paths a role must write but may not be
+   authorised to commit; they do not affect the code under test). `project-state.md`
+   is exempt because role-lifecycle.md requires every role to update it before
+   handing off while the Tester and Reviewer are forbidden to commit, so blocking
+   on it deadlocks a Tester or Reviewer re-entry
+3. current branch equals `Git / Branch` in `project-state.md`. Where it does not,
+   and the expected branch exists locally, the guard checks it out and continues;
+   check 2 has already established there is no work outside the exempt paths to
+   carry across. It stops only when that branch does not exist locally or the
+   checkout fails
 4. an upstream exists: `git rev-parse --abbrev-ref --symbolic-full-name @{u}`
 5. `git fetch <remote> <branch>` succeeds, then local `HEAD` equals the upstream commit
 
+Check 2 runs before check 3 so that the branch recovery cannot move uncommitted
+work between branches.
+
 Any failure stops with a role-contract-violation message. The guard never commits,
-stages, pushes or otherwise mutates the repository.
+stages, pushes or resets. Its one mutation is the `git checkout` in check 3, and it
+is suppressed under `--dry-run` (`allow_recovery=False`), which instead reports the
+switch a real run would make and leaves checks 4 and 5 to that run, since they
+would be evaluated against the expected branch.
 
 ## `launcher.py`
 

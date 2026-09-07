@@ -69,9 +69,14 @@ Two guards will stop the run if these are not satisfied:
 2. **Tester handoff guard** (before each Tester launch) — the working tree must be
    clean, the current branch must equal `Branch` in `project-state.md`, an upstream
    must be configured, and local `HEAD` must equal the upstream after a fetch.
-   Changes under `docs/qa/`, `docs/debug/` and `docs/reviews/` are exempt from
-   the clean-tree check: the Tester, Debugger and Reviewer must write those
-   reports but may not commit them, and they do not affect the code under test.
+   Changes under `docs/qa/`, `docs/debug/` and `docs/reviews/`, and to
+   `project-state.md`, are exempt from the clean-tree check: every role must write
+   those but the Tester and Reviewer may not commit them, and they do not affect
+   the code under test.
+
+   If the tree is otherwise clean and the branch named by `Branch` exists locally,
+   the guard checks it out and continues rather than stopping. It stops on a branch
+   mismatch only when that branch does not exist locally or cannot be checked out.
 
 A remote is therefore mandatory. If you have no hosted remote, a local bare repository
 works offline and needs no credentials:
@@ -277,7 +282,7 @@ If nothing matches, the run has actually ended — read the last line of `.ai-ru
 | `Cannot read .../project-state.md`             | Wrong working directory. `cd` to the project root.                          |
 | `Missing required fields`                      | A field was deleted from `project-state.md`. Restore the template schema.   |
 | `Ignore guard violation`                       | Add `.ai-run-state.json` and `.ai-run.log` to `.gitignore`.                 |
-| `Git handoff guard violation`                  | Commit and push before the Tester runs; check the branch matches `Branch`.  |
+| `Git handoff guard violation`                  | Commit and push before the Tester runs. On a branch mismatch the named branch does not exist locally: create it, or correct `Branch` in `project-state.md`. |
 | `No progress: <role> returned same Next Role`  | The role exited without updating `project-state.md`. Inspect its output.    |
 | `Senior debugger limit reached (§8)`           | The phase is fighting back. Fix it by hand or split the phase.              |
 | `Phase execution limit reached (§20)`          | The phase is looping. Raise `phase_max_executions` or split the phase.      |

@@ -5,6 +5,9 @@ These are end-to-end tests: they invoke the real bin/ai-next executable as a
 subprocess against temporary working directories, exactly as a human/operator
 would, rather than calling airun internals directly. Phase 6 is specifically
 about the git handoff guard and its integration with ai-next --dry-run.
+
+AC10 is the one exception: branch recovery is deliberately suppressed under
+--dry-run, so it calls the guard directly to exercise the real-run path.
 """
 
 import json
@@ -16,6 +19,10 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.resolve()
+sys.path.insert(0, str(REPO_ROOT))
+
+from airun.guards import check_git_handoff_guard
+
 AI_NEXT = REPO_ROOT / "bin" / "ai-next"
 GLOBAL_CONFIG = REPO_ROOT / "config" / "ai-run.json"
 
@@ -285,12 +292,15 @@ def test_ac4_no_upstream_stops():
 
 
 def test_ac5_wrong_branch_stops():
-    """AC5: With Next Role: Tester and the current branch differing from Git / Branch, it stops and exits 2."""
+    """AC5: With Next Role: Tester and the current branch differing from Git / Branch,
+    where the expected branch does not exist locally, it stops and exits 2.
+    A mismatch the guard can resolve safely is covered by AC10."""
     print("Testing AC5: wrong branch stops...")
-    
+
     workdir = make_workdir("ac5")
     setup_git_repo(workdir, branch="feature", with_upstream=True)  # Branch is "feature"
-    write_project_state(workdir, **{"Next Role": "Tester", "Active Phase": "Phase 6", "Branch": "main"})  # Expecting "main"
+    # Expect a branch that does not exist locally, so the guard cannot recover
+    write_project_state(workdir, **{"Next Role": "Tester", "Active Phase": "Phase 6", "Branch": "no-such-branch"})
     # Commit project-state.md
     subprocess.run(["git", "add", "project-state.md"], cwd=str(workdir), check=True)
     subprocess.run(["git", "commit", "-m", "Add project state"], cwd=str(workdir), check=True)
@@ -340,8 +350,10 @@ def test_ac6_guard_only_for_tester():
 
 
 def test_ac7_no_mutating_git_commands():
-    """AC7: No guard path ever runs git add, commit, push, checkout or reset;
-    only status, rev-parse, fetch, check-ignore and symbolic-ref are used."""
+    """AC7: No guard path ever runs git add, commit, push or reset, and a dry run
+    never mutates the repository at all. The one mutation the guard may make is a
+    git checkout to recover a branch mismatch on a real run (see AC10); it is not
+    reachable here because the repository is already on the expected branch."""
     print("Testing AC7: no mutating git commands used...")
     
     workdir = make_workdir("ac7")
@@ -425,6 +437,74 @@ def test_ac8_control_non_git_dir_non_tester_proceeds():
     shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_ac9_project_state_uncommitted_proceeds():
+    """AC9: An uncommitted project-state.md does not stop the Tester handoff.
+    Every role must update it before handing off, but the Tester and Reviewer are
+    forbidden to commit, so blocking on it deadlocks a Tester or Reviewer re-entry."""
+    print("Testing AC9: uncommitted project-state.md proceeds...")
+
+    workdir = make_workdir("ac9")
+    setup_git_repo(workdir, with_upstream=True)
+    write_project_state(workdir, **{"Next Role": "Tester", "Active Phase": "Phase 6"})
+    subprocess.run(["git", "add", "project-state.md"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "commit", "-m", "Add project state"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "push"], cwd=str(workdir), check=True)
+
+    # A role updates project-state.md but cannot commit it
+    write_project_state(workdir, **{"Next Role": "Tester", "Active Phase": "Phase 6",
+                                    "Status": "Re-test after debug"})
+
+    rc, out, err = run_ai_next(workdir)
+    combined = out + err
+
+    check(rc == 0, f"AC9: expected exit 0 for uncommitted project-state.md, got {rc}\n---combined---\n{combined}")
+    check("Uncommitted changes present" not in combined,
+          f"AC9: project-state.md must be exempt from the clean-tree check\n---combined---\n{combined}")
+
+    shutil.rmtree(workdir, ignore_errors=True)
+
+
+def test_ac10_branch_mismatch_recovers():
+    """AC10: On a real run, a branch mismatch the guard can resolve safely - the
+    expected branch exists and the tree holds nothing outside the exempt paths -
+    is resolved by checking that branch out rather than stopping."""
+    print("Testing AC10: recoverable branch mismatch is checked out...")
+
+    workdir = make_workdir("ac10")
+    setup_git_repo(workdir, with_upstream=True)  # on main, with upstream
+    subprocess.run(["git", "checkout", "-q", "-b", "phase-x"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "push", "-q", "-u", "origin", "phase-x"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "checkout", "-q", "main"], cwd=str(workdir), check=True)
+
+    # Called directly: run_ai_next always passes --dry-run, which must not mutate
+    err = check_git_handoff_guard(str(workdir), "phase-x", allow_recovery=True)
+
+    check(err is None, f"AC10: expected the guard to recover, got {err!r}")
+
+    current_branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=str(workdir),
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    check(current_branch == "phase-x",
+          f"AC10: expected the guard to check out phase-x, still on {current_branch}")
+
+    # And a dry run makes no change
+    subprocess.run(["git", "checkout", "-q", "main"], cwd=str(workdir), check=True)
+    check_git_handoff_guard(str(workdir), "phase-x", allow_recovery=False)
+    current_branch = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=str(workdir),
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    check(current_branch == "main",
+          f"AC10: a dry run must not switch branches, now on {current_branch}")
+
+    shutil.rmtree(workdir, ignore_errors=True)
+
+
 def main():
     tests = [
         test_ac1_uncommitted_changes_stops,
@@ -436,6 +516,8 @@ def main():
         test_ac7_no_mutating_git_commands,
         test_ac8_non_git_dir_tester_stops,
         test_ac8_control_non_git_dir_non_tester_proceeds,
+        test_ac9_project_state_uncommitted_proceeds,
+        test_ac10_branch_mismatch_recovers,
     ]
 
     for t in tests:

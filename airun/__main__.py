@@ -148,7 +148,9 @@ def next_command(args: argparse.Namespace, return_execution_info: bool = False, 
         
         # Check git handoff guard for Tester role (always when launching)
         if decision.action == "launch" and decision.logical_role.lower() == "tester":
-            handoff_result = check_git_handoff_guard(cwd, project_state.branch)
+            handoff_result = check_git_handoff_guard(
+                cwd, project_state.branch, allow_recovery=not args.dry_run
+            )
             if handoff_result:
                 # Role-contract violation: stop with exit code 2.
                 # Dry-run must not mutate, so the logbook is only written for a
