@@ -1,6 +1,6 @@
 # Role Lifecycle
 
-Version: 2.2
+Version: 2.3
 
 ---
 
@@ -75,6 +75,34 @@ Only the Git Assistant may change its value. Every other role must leave it exac
 A role that believes the phase is finished records that in `Status`, `Next Role` and `Next Action`, and hands off. Advancing the phase is the Git Assistant's step, taken when the phase's work is committed.
 
 A change to `Active Phase` by any other role is a contradictory workflow state and stops the workflow.
+
+## Next Role Values
+
+`Next Role` names the single role that acts next. It is routed by exact match, so it holds exactly one role name from this set and nothing else:
+
+`Architect`, `UI Designer`, `Implementer`, `Tester`, `Debugger`, `Reviewer`, `Git Assistant`, `None`
+
+`None` means the workflow is idle.
+
+Do not qualify the value. A phase number, a parenthetical, a second role, a conditional, or any other commentary appended to the role name matches no role: it stops the workflow and it defeats the handoff checks that read this field.
+
+Which phase the next role works on is already carried by `Active Phase` and `Next Action`. It is never added to `Next Role`.
+
+Correct:
+
+```text
+Next Role: Tester
+
+Next Action: Test Phase 20.0a — per-item document provenance in the extractor.
+```
+
+Incorrect:
+
+```text
+Next Role: Implementer (Phase 20.0b)
+```
+
+---
 
 ## Execution Field Values
 

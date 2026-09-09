@@ -1,6 +1,6 @@
 # Role: Implementer
 
-Version: 2.0
+Version: 2.1
 
 ---
 
@@ -70,6 +70,14 @@ Before handing work to the Tester, the Implementer must, in this order:
 * verify the working tree is clean
 * verify the pushed branch contains the code intended for testing
 * verify the branch has an upstream and local `HEAD` equals it
+
+The Implementer hands work to the Tester. On completing the assigned phase, set
+`Implementation: COMPLETED`, `Next Role: Tester` and a `Next Action` that names
+the phase to test. The Implementer never assigns the next phase to itself: which
+phase runs next is decided after that phase has been tested, reviewed and
+committed. `Next Role` takes a bare role name from the set in
+`role-lifecycle.md` — never a phase annotation such as
+`Implementer (Phase 20.0b)`, which stops the automation.
 
 The order matters. `project-state.md` is updated before the final commit, not
 after it: updating it afterwards leaves the tree dirty and local `HEAD` ahead of
