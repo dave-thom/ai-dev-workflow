@@ -10,7 +10,7 @@ workflow.
 ## 1. What It Does
 
 `ai-run` reads `project-state.md` in your **current working directory**, decides which
-role should run next, launches that role as a Claude Code or OpenCode subprocess, then
+role should run next, launches that role as a Claude Code, OpenCode or Codex subprocess, then
 re-reads the state to confirm progress was made.
 
 The role updates `project-state.md` before it exits. That update is what moves the
@@ -35,7 +35,15 @@ export PATH="$AI_PLATFORM/bin:$PATH"
 
 `AI_PLATFORM` is required — `ai-role` exits immediately without it.
 
-Install at least one runtime: `claude`, `opencode`, or both.
+Install the runtimes your config uses: `claude`, `opencode` and `codex`. The shipped
+config uses all three — Codex runs the Reviewer.
+
+Codex can authenticate with a ChatGPT plan that includes Codex, rather than an API key:
+
+```bash
+npm i -g @openai/codex
+codex login          # choose "Sign in with ChatGPT"
+```
 
 Verify:
 
@@ -180,8 +188,13 @@ Create `.ai-run.json` in the project and override only what you need:
 
 `command` is an argv list, not a shell string — every element must be a separate
 string. `kickoff` controls whether `kickoff_prompt` is appended as the final argument;
-it defaults to `true`. Claude runners generally want `true`; OpenCode runners in the
-shipped config use `false` because the composed role prompt is already the message.
+it defaults to `true`. Claude runners generally want `true`; OpenCode and Codex runners
+must use `false` because the composed role prompt is already the message. `codex exec`
+accepts a single prompt, so a kickoff argument would break the launch.
+
+Codex runners also need a sandbox that permits writes: the Reviewer writes
+`docs/reviews/` and `project-state.md`, which the default read-only sandbox blocks. Use
+`--sandbox workspace-write`.
 
 To change only the model, edit the model argument in the `command` list.
 
@@ -222,11 +235,12 @@ Counters are per phase and reset when the Git Assistant changes `Active Phase`.
 runtime. Use it for the Architect, or to drive a single role by hand.
 
 ```bash
-ai-role <claude|opencode> <role> [runtime arguments...]
+ai-role <claude|opencode|codex> <role> [runtime arguments...]
 
 ai-role claude architect
 ai-role claude reviewer --model sonnet
 ai-role opencode implementer -m openrouter/deepseek/deepseek-v3.2
+ai-role codex reviewer --sandbox workspace-write
 ```
 
 Roles: `architect`, `designer`, `implementer`, `tester`, `debugger`, `reviewer`, `git`.
@@ -283,7 +297,7 @@ not a hang.
 To confirm from another terminal:
 
 ```bash
-ps -eo pid,etime,command | grep -E "tsx|npm|claude" | grep -v grep
+ps -eo pid,etime,command | grep -E "tsx|npm|claude|codex" | grep -v grep
 ```
 
 `etime` is how long each process has been alive (`MM:SS`, or `HH:MM:SS` past an hour), and
@@ -323,7 +337,7 @@ ai-run-phase          # run one complete phase
 tail -f .ai-run.log   # watch it, in another terminal
 
 # still going, or stuck? (another terminal — see section 9)
-ps -eo pid,etime,command | grep -E "tsx|npm|claude" | grep -v grep
+ps -eo pid,etime,command | grep -E "tsx|npm|claude|codex" | grep -v grep
 
 ai-run                # run to the end of the plan
 ```

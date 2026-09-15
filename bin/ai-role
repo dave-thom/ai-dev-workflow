@@ -6,7 +6,7 @@
 #   1. Shared role lifecycle instructions
 #   2. Selected role-specific instructions
 #
-# Then launches either Claude Code or OpenCode.
+# Then launches Claude Code, OpenCode or Codex.
 #
 # Usage:
 #
@@ -14,6 +14,8 @@
 #
 #   ai-role opencode implementer \
 #       -m openrouter/deepseek/deepseek-v3.2
+#
+#   ai-role codex reviewer --sandbox workspace-write
 #
 # Debug usage:
 #
@@ -47,6 +49,7 @@ Supported runtimes:
 
   claude
   opencode
+  codex
 
 Examples:
 
@@ -59,6 +62,8 @@ Examples:
 
   ai-role opencode reviewer \
       -m openrouter/deepseek/deepseek-v4-pro
+
+  ai-role codex reviewer --sandbox workspace-write
 
 Debug:
 
@@ -87,7 +92,7 @@ ROLE_FILE="$PROMPTS_DIR/role-${ROLE}.md"
 ###############################################################################
 
 case "$RUNTIME" in
-    claude|opencode)
+    claude|opencode|codex)
         ;;
     *)
         echo "Error: unsupported runtime: $RUNTIME"
@@ -211,6 +216,13 @@ if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
                 printf '%s\n' opencode --prompt "$COMBINED_PROMPT" "$@"
             fi
             ;;
+        codex)
+            if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+                printf '%s\n' codex exec "$@" "$COMBINED_PROMPT"
+            else
+                printf '%s\n' codex "$@" "$COMBINED_PROMPT"
+            fi
+            ;;
     esac
     exit 0
 fi
@@ -245,6 +257,21 @@ if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
             exec opencode \
                 --prompt "$COMBINED_PROMPT" \
                 "$@"
+        fi
+        ;;
+
+    codex)
+        # Codex has no system-prompt flag, so the composed prompt is the
+        # message. Runtime arguments precede it; codex exec takes one prompt.
+        if [[ "${AI_ROLE_BATCH:-0}" == "1" ]]; then
+            exec codex \
+                exec \
+                "$@" \
+                "$COMBINED_PROMPT"
+        else
+            exec codex \
+                "$@" \
+                "$COMBINED_PROMPT"
         fi
         ;;
 esac

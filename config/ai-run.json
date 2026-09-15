@@ -6,7 +6,7 @@
     "senior_debugger": { "command": ["ai-role", "opencode", "debugger", "-m", "openrouter/deepseek/deepseek-v4-pro"], "kickoff": false },
     "git": { "command": ["ai-role", "opencode", "git", "-m", "openrouter/deepseek/deepseek-v4-flash"], "kickoff": false },
     "tester": { "command": ["ai-role", "claude", "tester", "--model", "sonnet", "--permission-mode", "auto"], "kickoff": true },
-    "reviewer": { "command": ["ai-role", "claude", "reviewer", "--model", "sonnet", "--permission-mode", "auto"], "kickoff": true },
+    "reviewer": { "command": ["ai-role", "codex", "reviewer", "--sandbox", "workspace-write"], "kickoff": false },
     "designer": { "command": ["ai-role", "claude", "designer", "--model", "sonnet", "--permission-mode", "auto"], "kickoff": true }
   },
   "limits": {
