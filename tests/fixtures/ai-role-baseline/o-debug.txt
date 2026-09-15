@@ -2,7 +2,7 @@ opencode
 --prompt
 # Role Lifecycle
 
-Version: 2.2
+Version: 2.3
 
 ---
 
@@ -66,6 +66,61 @@ Roles must not:
 * record rationale already documented elsewhere
 * accumulate links to superseded reports
 * copy report contents into `project-state.md`
+* change `Active Phase`
+
+## Active Phase
+
+`Active Phase` is owned exclusively by the Git Assistant.
+
+Only the Git Assistant may change its value. Every other role must leave it exactly as it found it, including when its own work has completed the phase.
+
+A role that believes the phase is finished records that in `Status`, `Next Role` and `Next Action`, and hands off. Advancing the phase is the Git Assistant's step, taken when the phase's work is committed.
+
+A change to `Active Phase` by any other role is a contradictory workflow state and stops the workflow.
+
+## Next Role Values
+
+`Next Role` names the single role that acts next. It is routed by exact match, so it holds exactly one role name from this set and nothing else:
+
+`Architect`, `UI Designer`, `Implementer`, `Tester`, `Debugger`, `Reviewer`, `Git Assistant`, `None`
+
+`None` means the workflow is idle.
+
+Do not qualify the value. A phase number, a parenthetical, a second role, a conditional, or any other commentary appended to the role name matches no role: it stops the workflow and it defeats the handoff checks that read this field.
+
+Which phase the next role works on is already carried by `Active Phase` and `Next Action`. It is never added to `Next Role`.
+
+Correct:
+
+```text
+Next Role: Tester
+
+Next Action: Test Phase 20.0a — per-item document provenance in the extractor.
+```
+
+Incorrect:
+
+```text
+Next Role: Implementer (Phase 20.0b)
+```
+
+---
+
+## Execution Field Values
+
+`Implementation`, `QA` and `Review` are status fields, not prose. Each holds exactly one value from its permitted set, and nothing else:
+
+| Field | Permitted values |
+| --- | --- |
+| `Implementation` | `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED` |
+| `QA` | `NOT_STARTED`, `PASS`, `FAIL` |
+| `Review` | `NOT_STARTED`, `APPROVED`, `CHANGES_REQUESTED` |
+
+These values are compared exactly. A field containing a sentence, a phase name, a report path, a date, or more than one outcome matches nothing — which both blocks legitimate handoffs and disables the checks that depend on the field.
+
+The values describe the **current** phase only. A phase that begins resets them; do not carry a previous phase's outcome forward and do not record two outcomes in one field.
+
+What was implemented, what was tested, what failed and which report holds the evidence belongs in the role's deliverable, referenced from `Current Deliverables`. Never in these fields.
 
 Detailed information belongs in the mandatory deliverable for the role.
 
@@ -321,7 +376,7 @@ Further work begins only when the role is invoked again and `project-state.md` d
 
 # Role: Debugger
 
-Version: 2.0
+Version: 2.1
 
 ---
 
@@ -366,19 +421,44 @@ The Debugger must not:
 The Debugger is responsible for making completed fixes available to the Tester on
 the remote active phase branch.
 
-Before handing fixes back to the Tester, the Debugger must:
+Before handing fixes back to the Tester, the Debugger must, in this order:
 
 * complete the required defect fixes
 * run appropriate local verification
-* commit all code changes made to resolve the confirmed defects
-* push the active phase branch to the remote repository
-* verify the working tree is clean
-* verify the pushed branch contains the fixes intended for re-testing
+* remove every file the Debugger created during the session that is not part of
+  the fix, such as abandoned attempts, superseded configuration and scratch files
 * update `project-state.md` with current state only, including the active branch,
   re-test status, next role and relevant current deliverable pointers
+* commit all code changes made to resolve the confirmed defects, including new
+  files, together with the updated `project-state.md`
+* push the active phase branch to the remote repository, configuring upstream
+  tracking on first push (`git push -u origin <branch>`)
+* verify the working tree is clean with
+  `git status --porcelain --untracked-files=all`
+* verify the pushed branch contains the fixes intended for re-testing
+* verify the branch has an upstream and local `HEAD` equals it
+
+The order matters. `project-state.md` is updated before the commit, not after it:
+updating it afterwards leaves the tree dirty and local `HEAD` ahead of the remote,
+which stops the automation at the Tester handoff.
+
+Every file the Debugger creates or modifies must end the session either committed
+or removed. An untracked file is a change: the Tester handoff guard counts it and
+stops the automation. It can also silently alter the code under test — a stray
+configuration file, for example, can be picked up in place of the committed one.
+
+The clean-tree check passes only when the command reports nothing outside
+`docs/qa/`, `docs/debug/`, `docs/reviews/` and the project's `handoff_exempt_paths`.
+Do not hand off to the Tester while it reports anything else. If a remaining change
+was not made by the Debugger, do not commit or delete it: stop and request human
+intervention.
 
 A fix must not be marked ready for re-test until the corrected code is available
 on the remote active phase branch.
+
+The Tester handoff is gated by the git handoff guard, which requires the phase
+branch to have upstream tracking configured. A push that does not set upstream
+will stop automation even though the code reached the remote.
 
 Debugger commits are provisional. The Debugger must:
 
@@ -496,7 +576,8 @@ Debugging is complete when:
 * mandatory deliverables have been produced
 * appropriate local verification has completed
 * all debugging changes are committed to the active phase branch
-* the active phase branch has been pushed to the remote repository
+* the active phase branch has been pushed to the remote repository with upstream
+  tracking configured
 * the working tree is clean
 * the implementation is ready and available for re-testing
 

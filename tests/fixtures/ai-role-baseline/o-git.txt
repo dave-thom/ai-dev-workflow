@@ -2,7 +2,7 @@ opencode
 --prompt
 # Role Lifecycle
 
-Version: 2.2
+Version: 2.3
 
 ---
 
@@ -66,6 +66,61 @@ Roles must not:
 * record rationale already documented elsewhere
 * accumulate links to superseded reports
 * copy report contents into `project-state.md`
+* change `Active Phase`
+
+## Active Phase
+
+`Active Phase` is owned exclusively by the Git Assistant.
+
+Only the Git Assistant may change its value. Every other role must leave it exactly as it found it, including when its own work has completed the phase.
+
+A role that believes the phase is finished records that in `Status`, `Next Role` and `Next Action`, and hands off. Advancing the phase is the Git Assistant's step, taken when the phase's work is committed.
+
+A change to `Active Phase` by any other role is a contradictory workflow state and stops the workflow.
+
+## Next Role Values
+
+`Next Role` names the single role that acts next. It is routed by exact match, so it holds exactly one role name from this set and nothing else:
+
+`Architect`, `UI Designer`, `Implementer`, `Tester`, `Debugger`, `Reviewer`, `Git Assistant`, `None`
+
+`None` means the workflow is idle.
+
+Do not qualify the value. A phase number, a parenthetical, a second role, a conditional, or any other commentary appended to the role name matches no role: it stops the workflow and it defeats the handoff checks that read this field.
+
+Which phase the next role works on is already carried by `Active Phase` and `Next Action`. It is never added to `Next Role`.
+
+Correct:
+
+```text
+Next Role: Tester
+
+Next Action: Test Phase 20.0a — per-item document provenance in the extractor.
+```
+
+Incorrect:
+
+```text
+Next Role: Implementer (Phase 20.0b)
+```
+
+---
+
+## Execution Field Values
+
+`Implementation`, `QA` and `Review` are status fields, not prose. Each holds exactly one value from its permitted set, and nothing else:
+
+| Field | Permitted values |
+| --- | --- |
+| `Implementation` | `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED` |
+| `QA` | `NOT_STARTED`, `PASS`, `FAIL` |
+| `Review` | `NOT_STARTED`, `APPROVED`, `CHANGES_REQUESTED` |
+
+These values are compared exactly. A field containing a sentence, a phase name, a report path, a date, or more than one outcome matches nothing — which both blocks legitimate handoffs and disables the checks that depend on the field.
+
+The values describe the **current** phase only. A phase that begins resets them; do not carry a previous phase's outcome forward and do not record two outcomes in one field.
+
+What was implemented, what was tested, what failed and which report holds the evidence belongs in the role's deliverable, referenced from `Current Deliverables`. Never in these fields.
 
 Detailed information belongs in the mandatory deliverable for the role.
 
@@ -484,8 +539,15 @@ After successful integration of an approved phase:
 
 1. Read `myplan.md` to determine the next phase
 2. Set `Active Phase` to that next phase in `project-state.md`
-3. Set `Next Role` to the role required by that next phase
-4. If `myplan.md` has no further phase, set `Next Role: Architect`
+3. Set `Branch` to the branch name the next phase will be implemented on, following
+   the project's branching convention (for example `phase-19-implementation`). The
+   branch need not exist yet; the Implementer creates it as its first act.
+4. Set `Next Role` to the role required by that next phase
+5. If `myplan.md` has no further phase, set `Next Role: Architect`
+
+`Branch` must never be left naming the integration target (for example `master`)
+while a phase is active. That is what causes an Implementer to build the phase on
+the integration branch and create the phase branch retrospectively.
 
 This responsibility ensures cross-phase automation correctly resets counters and routes the first Implementer of the next phase to the ordinary tier rather than the senior tier.
 
@@ -495,12 +557,23 @@ This responsibility ensures cross-phase automation correctly resets counters and
 
 After the Tester has reported PASS and the Reviewer has approved the implementation, the Git Assistant is responsible for integrating the approved phase branch.
 
-Before merging, verify:
+Before merging, commit to the phase branch any uncommitted changes under:
+
+* `docs/qa/`, `docs/debug/` and `docs/reviews/`
+* each path listed in `handoff_exempt_paths` in the project's `.ai-run.json`, if present
+
+The Tester and Reviewer write these files but may not commit them, and the Tester
+handoff guard does not require them to be committed, so they reach the repository
+only through this step. They are part of the phase, not unrelated work. Report any
+other uncommitted change rather than committing it.
+
+Then verify:
 
 * testing has passed
 * Reviewer approval has been obtained
 * required repository checks have completed successfully
-* the phase branch contains only approved implementation changes
+* the phase branch contains only approved implementation changes and the phase
+  records committed above
 
 Where appropriate, the Git Assistant may:
 
