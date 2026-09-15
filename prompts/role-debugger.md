@@ -1,6 +1,6 @@
 # Role: Debugger
 
-Version: 2.0
+Version: 2.1
 
 ---
 
@@ -49,19 +49,33 @@ Before handing fixes back to the Tester, the Debugger must, in this order:
 
 * complete the required defect fixes
 * run appropriate local verification
+* remove every file the Debugger created during the session that is not part of
+  the fix, such as abandoned attempts, superseded configuration and scratch files
 * update `project-state.md` with current state only, including the active branch,
   re-test status, next role and relevant current deliverable pointers
-* commit all code changes made to resolve the confirmed defects, together with the
-  updated `project-state.md`
+* commit all code changes made to resolve the confirmed defects, including new
+  files, together with the updated `project-state.md`
 * push the active phase branch to the remote repository, configuring upstream
   tracking on first push (`git push -u origin <branch>`)
-* verify the working tree is clean
+* verify the working tree is clean with
+  `git status --porcelain --untracked-files=all`
 * verify the pushed branch contains the fixes intended for re-testing
 * verify the branch has an upstream and local `HEAD` equals it
 
 The order matters. `project-state.md` is updated before the commit, not after it:
 updating it afterwards leaves the tree dirty and local `HEAD` ahead of the remote,
 which stops the automation at the Tester handoff.
+
+Every file the Debugger creates or modifies must end the session either committed
+or removed. An untracked file is a change: the Tester handoff guard counts it and
+stops the automation. It can also silently alter the code under test — a stray
+configuration file, for example, can be picked up in place of the committed one.
+
+The clean-tree check passes only when the command reports nothing outside
+`docs/qa/`, `docs/debug/`, `docs/reviews/` and the project's `handoff_exempt_paths`.
+Do not hand off to the Tester while it reports anything else. If a remaining change
+was not made by the Debugger, do not commit or delete it: stop and request human
+intervention.
 
 A fix must not be marked ready for re-test until the corrected code is available
 on the remote active phase branch.
