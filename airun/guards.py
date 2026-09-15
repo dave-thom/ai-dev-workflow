@@ -3,7 +3,7 @@
 import os
 import subprocess
 import sys
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 
 # Paths a role is required to write but may not be authorised to commit. Changes
@@ -21,6 +21,9 @@ DELIVERABLE_PREFIXES = (
     "docs/reviews/",
     "project-state.md",
 )
+
+# A project adds its own such paths with handoff_exempt_paths in .ai-run.json, for
+# example a harness output directory the Tester writes to while testing.
 
 
 def check_ignore_guard(workdir: str) -> Optional[str]:
@@ -65,11 +68,15 @@ def check_git_handoff_guard(
     workdir: str,
     expected_branch: str,
     allow_recovery: bool = True,
+    exempt_paths: Sequence[str] = (),
 ) -> Optional[str]:
     """
     Check git handoff guard conditions for Tester role.
 
     Returns None if all conditions pass, or an error message if any fail.
+
+    exempt_paths adds project-specific path prefixes to DELIVERABLE_PREFIXES for
+    the clean-tree check.
 
     With allow_recovery, a branch mismatch that can be resolved safely is
     resolved by checking the expected branch out rather than stopping the run.
@@ -90,7 +97,7 @@ def check_git_handoff_guard(
     # 1. Check for uncommitted changes, ignoring role deliverables.
     #    This runs before the branch check so that the recovery below can only
     #    switch branches when there is no unsaved work to carry across.
-    uncommitted = _check_uncommitted(workdir)
+    uncommitted = _check_uncommitted(workdir, exempt_paths)
     if uncommitted:
         return uncommitted
 
@@ -199,11 +206,11 @@ def check_git_handoff_guard(
     
     return None
 
-def _check_uncommitted(workdir: str) -> Optional[str]:
+def _check_uncommitted(workdir: str, exempt_paths: Sequence[str] = ()) -> Optional[str]:
     """Return an error if the tree holds changes outside the exempt paths."""
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain", "-z"],
+            ["git", "status", "--porcelain", "-z", "--untracked-files=all"],
             cwd=workdir,
             capture_output=True,
             text=True,
@@ -214,11 +221,15 @@ def _check_uncommitted(workdir: str) -> Optional[str]:
 
     # -z gives NUL-terminated, never-quoted records of the form "XY path".
     # A rename also emits its original path as a bare trailing record.
+    # --untracked-files=all lists each untracked file instead of collapsing a new
+    # directory to its topmost untracked parent, which would hide an exempt path
+    # nested inside it.
+    prefixes = DELIVERABLE_PREFIXES + tuple(exempt_paths)
     for record in result.stdout.split("\0"):
         if not record:
             continue
         path = record[3:] if record[2:3] == " " else record
-        if not path.startswith(DELIVERABLE_PREFIXES):
+        if not path.startswith(prefixes):
             return "Uncommitted changes present"
 
     return None

@@ -505,6 +505,45 @@ def test_ac10_branch_mismatch_recovers():
     shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_ac11_configured_exempt_path_proceeds():
+    """AC11: Changes under a prefix in the project's handoff_exempt_paths do not
+    stop the Tester handoff, even inside a new untracked directory, while a change
+    outside it still does. Covers output a Tester writes while testing but may
+    not commit, such as harness captures."""
+    print("Testing AC11: configured exempt path proceeds...")
+
+    workdir = make_workdir("ac11")
+    setup_git_repo(workdir, with_upstream=True)
+    write_project_state(workdir, **{"Next Role": "Tester", "Active Phase": "Phase 6"})
+    (workdir / ".ai-run.json").write_text(
+        json.dumps({"handoff_exempt_paths": ["validation/probe/captures/"]})
+    )
+    subprocess.run(["git", "add", "project-state.md", ".ai-run.json"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "Add project state and config"], cwd=str(workdir), check=True)
+    subprocess.run(["git", "push", "-q"], cwd=str(workdir), check=True)
+
+    # The Tester writes captures into a new directory it cannot commit
+    captures = workdir / "validation" / "probe" / "captures"
+    captures.mkdir(parents=True)
+    (captures / "capture_q1.json").write_text("{}")
+
+    rc, out, err = run_ai_next(workdir)
+    combined = out + err
+    check(rc == 0, f"AC11: expected exit 0 for changes under an exempt path, got {rc}\n---combined---\n{combined}")
+    check("Uncommitted changes present" not in combined,
+          f"AC11: configured path must be exempt from the clean-tree check\n---combined---\n{combined}")
+
+    # A change outside the configured path still stops
+    (workdir / "validation" / "probe" / "probe.ts").write_text("// changed")
+    rc, out, err = run_ai_next(workdir)
+    combined = out + err
+    check(rc == 2, f"AC11: expected exit 2 for a change outside the exempt path, got {rc}\n---combined---\n{combined}")
+    check("Uncommitted changes present" in combined,
+          f"AC11: expected stop message about uncommitted changes\n---combined---\n{combined}")
+
+    shutil.rmtree(workdir, ignore_errors=True)
+
+
 def main():
     tests = [
         test_ac1_uncommitted_changes_stops,
@@ -518,6 +557,7 @@ def main():
         test_ac8_control_non_git_dir_non_tester_proceeds,
         test_ac9_project_state_uncommitted_proceeds,
         test_ac10_branch_mismatch_recovers,
+        test_ac11_configured_exempt_path_proceeds,
     ]
 
     for t in tests:

@@ -16,7 +16,8 @@ def load_config(base_dir: str = None) -> Dict[str, Any]:
                   of this module's parent directory.
     
     Returns:
-        Configuration dictionary with 'roles' and 'limits' keys.
+        Configuration dictionary with 'roles', 'limits' and
+        'handoff_exempt_paths' keys.
     
     Raises:
         InvalidStateError: If config files are missing, malformed, or invalid.
@@ -57,6 +58,10 @@ def load_config(base_dir: str = None) -> Dict[str, Any]:
         if "limits" in local_config:
             for limit_name, limit_value in local_config["limits"].items():
                 config.setdefault("limits", {})[limit_name] = limit_value
+
+        # Replace handoff_exempt_paths if present
+        if "handoff_exempt_paths" in local_config:
+            config["handoff_exempt_paths"] = local_config["handoff_exempt_paths"]
     
     # Validate required structure
     if not isinstance(config.get("kickoff_prompt"), str):
@@ -105,4 +110,15 @@ def load_config(base_dir: str = None) -> Dict[str, Any]:
         if not isinstance(limit_value, int) or limit_value < 0:
             raise InvalidStateError(f"Limit {limit_name} must be a non-negative integer")
     
+    # Validate handoff_exempt_paths: path prefixes the Tester handoff guard
+    # excludes from its clean-tree check
+    exempt_paths = config.setdefault("handoff_exempt_paths", [])
+    if not isinstance(exempt_paths, list):
+        raise InvalidStateError("handoff_exempt_paths must be a list")
+    for i, path in enumerate(exempt_paths):
+        if not isinstance(path, str) or not path or path.startswith("/"):
+            raise InvalidStateError(
+                f"handoff_exempt_paths entry {i} must be a non-empty relative path"
+            )
+
     return config

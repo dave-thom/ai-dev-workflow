@@ -136,7 +136,8 @@ def progress_snapshot(s: ProjectState) -> dict      # §21 fields only
 ## `config.py`
 
 Loads `$AI_PLATFORM/config/ai-run.json`, then shallow-merges an optional project-local
-`.ai-run.json` over it (`roles` merged per key, `limits` merged per key). Validates
+`.ai-run.json` over it (`roles` merged per key, `limits` merged per key,
+`handoff_exempt_paths` replaced; optional list of relative path prefixes). Validates
 that every runner referenced by routing has a non-empty `command` list.
 
 Schema:
@@ -246,8 +247,9 @@ Skipped when the working directory is not a git repository.
 `Next Role` is `Tester`):
 
 1. working directory is a git repository
-2. `git status --porcelain` reports no changes outside `docs/qa/`, `docs/debug/`,
-   `docs/reviews/` and `project-state.md` (paths a role must write but may not be
+2. `git status --porcelain --untracked-files=all` reports no changes outside `docs/qa/`,
+   `docs/debug/`, `docs/reviews/`, `project-state.md` and any prefix in the config's
+   `handoff_exempt_paths` (paths a role must write but may not be
    authorised to commit; they do not affect the code under test). `project-state.md`
    is exempt because role-lifecycle.md requires every role to update it before
    handing off while the Tester and Reviewer are forbidden to commit, so blocking

@@ -247,6 +247,50 @@ class TestConfigLoading(unittest.TestCase):
             finally:
                 os.chdir(original_cwd)
 
+    def test_handoff_exempt_paths(self):
+        """Project-local handoff_exempt_paths is loaded, defaults to empty, and
+        accepts only a list of non-empty relative paths."""
+        from airun.errors import InvalidStateError
+
+        global_config = {
+            "kickoff_prompt": "Global prompt",
+            "roles": {"tester": {"command": ["global-tester"]}},
+            "limits": {
+                "phase_max_executions": 15,
+                "senior_debugger_max": 3,
+                "designer_max": 2
+            }
+        }
+        cases = [
+            (None, []),
+            ({"handoff_exempt_paths": ["validation/probe/captures/"]}, ["validation/probe/captures/"]),
+            ({"handoff_exempt_paths": "validation/"}, "must be a list"),
+            ({"handoff_exempt_paths": [""]}, "non-empty relative path"),
+            ({"handoff_exempt_paths": ["/validation/"]}, "non-empty relative path"),
+        ]
+        for local_config, expected in cases:
+            with self.subTest(local_config=local_config), tempfile.TemporaryDirectory() as tmpdir:
+                global_config_path = Path(tmpdir) / "config" / "ai-run.json"
+                global_config_path.parent.mkdir(parents=True)
+                with open(global_config_path, 'w') as f:
+                    json.dump(global_config, f)
+                if local_config is not None:
+                    with open(Path(tmpdir) / ".ai-run.json", 'w') as f:
+                        json.dump(local_config, f)
+
+                original_cwd = os.getcwd()
+                os.chdir(tmpdir)
+                try:
+                    if isinstance(expected, list):
+                        config = load_config(tmpdir)
+                        self.assertEqual(config["handoff_exempt_paths"], expected)
+                    else:
+                        with self.assertRaises(InvalidStateError) as context:
+                            load_config(tmpdir)
+                        self.assertIn(expected, str(context.exception))
+                finally:
+                    os.chdir(original_cwd)
+
 
 class TestRuntimeState(unittest.TestCase):
     """Test runtime state management (.ai-run-state.json)."""

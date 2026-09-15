@@ -73,6 +73,8 @@ Two guards will stop the run if these are not satisfied:
    `project-state.md`, are exempt from the clean-tree check: every role must write
    those but the Tester and Reviewer may not commit them, and they do not affect
    the code under test.
+   A project adds its own such paths with `handoff_exempt_paths` in `.ai-run.json`
+   (see §5).
 
    If the tree is otherwise clean and the branch named by `Branch` exists locally,
    the guard checks it out and continues rather than stopping. It stops on a branch
@@ -132,6 +134,27 @@ Merge rules:
 * `kickoff_prompt` — replaced if present
 * `roles` — merged per role key; a local role entry replaces the global one entirely
 * `limits` — merged per limit key
+* `handoff_exempt_paths` — replaced if present
+
+### Exempting test output from the Tester handoff guard
+
+When testing writes files outside `docs/` that the Tester cannot commit — for
+example a harness that saves capture records — list their path prefixes so they do
+not stop the next Tester handoff:
+
+```json
+{
+  "handoff_exempt_paths": ["validation/probe/captures/"]
+}
+```
+
+Entries are relative path prefixes; end a directory with `/`. Exempt only output
+that does not affect the code under test, and commit `.ai-run.json` itself, or the
+guard will stop on it.
+
+Exempt files are not committed during the phase. The Git Assistant commits them,
+together with the reports under `docs/qa/`, `docs/debug/` and `docs/reviews/`, when
+it finalises the phase.
 
 ### Changing which runner a role uses
 
@@ -282,7 +305,7 @@ If nothing matches, the run has actually ended — read the last line of `.ai-ru
 | `Cannot read .../project-state.md`             | Wrong working directory. `cd` to the project root.                          |
 | `Missing required fields`                      | A field was deleted from `project-state.md`. Restore the template schema.   |
 | `Ignore guard violation`                       | Add `.ai-run-state.json` and `.ai-run.log` to `.gitignore`.                 |
-| `Git handoff guard violation`                  | Commit and push before the Tester runs. On a branch mismatch the named branch does not exist locally: create it, or correct `Branch` in `project-state.md`. |
+| `Git handoff guard violation`                  | Commit and push before the Tester runs, or exempt test output the Tester cannot commit with `handoff_exempt_paths`. On a branch mismatch the named branch does not exist locally: create it, or correct `Branch` in `project-state.md`. |
 | `No progress: <role> returned same Next Role`  | The role exited without updating `project-state.md`. Inspect its output.    |
 | `Senior debugger limit reached (§8)`           | The phase is fighting back. Fix it by hand or split the phase.              |
 | `Phase execution limit reached (§20)`          | The phase is looping. Raise `phase_max_executions` or split the phase.      |

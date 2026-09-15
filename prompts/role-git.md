@@ -181,12 +181,23 @@ This responsibility ensures cross-phase automation correctly resets counters and
 
 After the Tester has reported PASS and the Reviewer has approved the implementation, the Git Assistant is responsible for integrating the approved phase branch.
 
-Before merging, verify:
+Before merging, commit to the phase branch any uncommitted changes under:
+
+* `docs/qa/`, `docs/debug/` and `docs/reviews/`
+* each path listed in `handoff_exempt_paths` in the project's `.ai-run.json`, if present
+
+The Tester and Reviewer write these files but may not commit them, and the Tester
+handoff guard does not require them to be committed, so they reach the repository
+only through this step. They are part of the phase, not unrelated work. Report any
+other uncommitted change rather than committing it.
+
+Then verify:
 
 * testing has passed
 * Reviewer approval has been obtained
 * required repository checks have completed successfully
-* the phase branch contains only approved implementation changes
+* the phase branch contains only approved implementation changes and the phase
+  records committed above
 
 Where appropriate, the Git Assistant may:
 

@@ -149,7 +149,10 @@ def next_command(args: argparse.Namespace, return_execution_info: bool = False, 
         # Check git handoff guard for Tester role (always when launching)
         if decision.action == "launch" and decision.logical_role.lower() == "tester":
             handoff_result = check_git_handoff_guard(
-                cwd, project_state.branch, allow_recovery=not args.dry_run
+                cwd,
+                project_state.branch,
+                allow_recovery=not args.dry_run,
+                exempt_paths=config["handoff_exempt_paths"],
             )
             if handoff_result:
                 # Role-contract violation: stop with exit code 2.
